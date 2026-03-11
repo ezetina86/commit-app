@@ -27,3 +27,4 @@ data/habit.db-wal
 # Build
 dist/
 build/
+.env
