@@ -1,0 +1,29 @@
+# Binaries
+bin/
+api/api
+
+# Dependencies
+vendor/
+node_modules/
+
+# IDEs
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# Logs
+*.log
+
+# Docker
+.docker/
+
+# Data
+data/habit.db-journal
+data/habit.db-shm
+data/habit.db-wal
+
+# Build
+dist/
+build/
