@@ -1,5 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { QuoteBanner } from './quote-banner';
 
 describe('QuoteBanner Component', () => {
@@ -10,7 +10,7 @@ describe('QuoteBanner Component', () => {
 
   it('renders loading state initially', () => {
     // Mock fetch to never resolve immediately
-    (fetch as vi.Mock).mockImplementation(() => new Promise(() => {}));
+    (fetch as Mock).mockImplementation(() => new Promise(() => {}));
     
     render(<QuoteBanner />);
     expect(screen.getByText('_')).toHaveClass('animate-pulse');
@@ -23,7 +23,7 @@ describe('QuoteBanner Component', () => {
       category: "success"
     };
 
-    (fetch as vi.Mock).mockResolvedValueOnce({
+    (fetch as Mock).mockResolvedValueOnce({
       ok: true,
       json: async () => mockQuote,
     });
@@ -45,7 +45,7 @@ describe('QuoteBanner Component', () => {
       category: "success"
     };
 
-    (fetch as vi.Mock).mockResolvedValueOnce({
+    (fetch as Mock).mockResolvedValueOnce({
       ok: true,
       json: async () => mockQuote,
     });
