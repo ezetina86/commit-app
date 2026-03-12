@@ -241,9 +241,10 @@ function App() {
         </div>
       )}
 
-      <header className="w-full mb-12 flex justify-between items-center pointer-events-none">
-        <div className="flex items-center">
-          <img src="/commit.png" alt="Commit Logo" className="h-20 pointer-events-auto" />
+      <header className="w-full mb-12 flex justify-between items-start pointer-events-none">
+        <div>
+          <h1 className="text-4xl font-bold tracking-tight mb-2 uppercase pointer-events-auto">Commit</h1>
+          <p className="text-text-secondary text-sm tracking-widest uppercase pointer-events-auto">Precision Habit Tracking</p>
         </div>
         <button
           onClick={() => setShowInsights(!showInsights)}

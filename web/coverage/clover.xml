@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<coverage generated="1773215077761" clover="3.2.0">
-  <project timestamp="1773215077761" name="All files">
+<coverage generated="1773280883927" clover="3.2.0">
+  <project timestamp="1773280883927" name="All files">
     <metrics statements="121" coveredstatements="109" conditionals="66" coveredconditionals="51" methods="26" coveredmethods="19" elements="213" coveredelements="179" complexity="0" loc="121" ncloc="121" packages="1" files="3" classes="3"/>
     <file name="habit-grid.tsx" path="/Users/Enrique_Zetina/Documents/commit_app/web/src/components/habit-grid.tsx">
       <metrics statements="66" coveredstatements="64" conditionals="35" coveredconditionals="28" methods="10" coveredmethods="9"/>
@@ -33,10 +33,10 @@
       <line num="55" count="5" type="stmt"/>
       <line num="56" count="5" type="stmt"/>
       <line num="58" count="5" type="stmt"/>
-      <line num="59" count="1840" type="stmt"/>
-      <line num="60" count="1840" type="cond" truecount="2" falsecount="0"/>
-      <line num="63" count="1840" type="stmt"/>
-      <line num="64" count="1840" type="cond" truecount="2" falsecount="0"/>
+      <line num="59" count="1845" type="stmt"/>
+      <line num="60" count="1845" type="cond" truecount="2" falsecount="0"/>
+      <line num="63" count="1845" type="stmt"/>
+      <line num="64" count="1845" type="cond" truecount="2" falsecount="0"/>
       <line num="65" count="4" type="cond" truecount="1" falsecount="1"/>
       <line num="66" count="0" type="stmt"/>
       <line num="68" count="4" type="stmt"/>
@@ -44,31 +44,31 @@
       <line num="70" count="4" type="cond" truecount="1" falsecount="1"/>
       <line num="71" count="4" type="cond" truecount="1" falsecount="1"/>
       <line num="72" count="4" type="stmt"/>
-      <line num="76" count="1840" type="stmt"/>
-      <line num="85" count="1840" type="cond" truecount="2" falsecount="0"/>
+      <line num="76" count="1845" type="stmt"/>
+      <line num="85" count="1845" type="cond" truecount="2" falsecount="0"/>
       <line num="86" count="265" type="stmt"/>
       <line num="87" count="265" type="cond" truecount="2" falsecount="0"/>
       <line num="89" count="65" type="stmt"/>
       <line num="90" count="65" type="stmt"/>
-      <line num="94" count="1840" type="cond" truecount="2" falsecount="0"/>
+      <line num="94" count="1845" type="cond" truecount="2" falsecount="0"/>
       <line num="95" count="260" type="stmt"/>
-      <line num="97" count="1840" type="stmt"/>
+      <line num="97" count="1845" type="stmt"/>
       <line num="99" count="5" type="stmt"/>
       <line num="102" count="5" type="stmt"/>
       <line num="103" count="5" type="stmt"/>
       <line num="105" count="5" type="stmt"/>
       <line num="112" count="0" type="stmt"/>
       <line num="116" count="65" type="stmt"/>
-      <line num="132" count="1840" type="stmt"/>
-      <line num="133" count="1840" type="stmt"/>
-      <line num="135" count="1840" type="stmt"/>
-      <line num="136" count="1840" type="cond" truecount="1" falsecount="1"/>
-      <line num="137" count="1840" type="cond" truecount="1" falsecount="1"/>
-      <line num="138" count="1840" type="cond" truecount="1" falsecount="1"/>
-      <line num="139" count="1840" type="cond" truecount="2" falsecount="0"/>
-      <line num="141" count="1840" type="cond" truecount="2" falsecount="0"/>
-      <line num="142" count="1840" type="cond" truecount="2" falsecount="0"/>
-      <line num="146" count="1840" type="stmt"/>
+      <line num="132" count="1845" type="stmt"/>
+      <line num="133" count="1845" type="stmt"/>
+      <line num="135" count="1845" type="stmt"/>
+      <line num="136" count="1845" type="cond" truecount="1" falsecount="1"/>
+      <line num="137" count="1845" type="cond" truecount="1" falsecount="1"/>
+      <line num="138" count="1845" type="cond" truecount="1" falsecount="1"/>
+      <line num="139" count="1845" type="cond" truecount="2" falsecount="0"/>
+      <line num="141" count="1845" type="cond" truecount="2" falsecount="0"/>
+      <line num="142" count="1845" type="cond" truecount="2" falsecount="0"/>
+      <line num="146" count="1845" type="stmt"/>
       <line num="156" count="2" type="stmt"/>
     </file>
     <file name="insights-panel.tsx" path="/Users/Enrique_Zetina/Documents/commit_app/web/src/components/insights-panel.tsx">
