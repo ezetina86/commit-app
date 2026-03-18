@@ -49,7 +49,12 @@ func main() {
 				return
 			}
 
-			reqUrl := "https://api.api-ninjas.com/v1/quotes"
+			quoteCategories := []string{
+				"inspirational", "success", "happiness", "life", "motivational",
+				"wisdom", "courage", "perseverance", "focus", "discipline",
+			}
+			category := quoteCategories[rand.Intn(len(quoteCategories))]
+			reqUrl := "https://api.api-ninjas.com/v1/quotes?category=" + category
 
 			reqAPI, err := http.NewRequest("GET", reqUrl, nil)
 			if err != nil {
@@ -101,7 +106,8 @@ func main() {
 		})
 
 		r.Get("/habits", func(w http.ResponseWriter, r *http.Request) {
-			habits, err := habitService.ListHabits(r.Context())
+			includeArchived := r.URL.Query().Get("archived") == "true"
+			habits, err := habitService.ListHabits(r.Context(), includeArchived)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -153,6 +159,24 @@ func main() {
 		r.Delete("/habits/{id}", func(w http.ResponseWriter, r *http.Request) {
 			id := chi.URLParam(r, "id")
 			if err := habitService.DeleteHabit(r.Context(), id); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.WriteHeader(http.StatusNoContent)
+		})
+
+		r.Patch("/habits/{id}/archive", func(w http.ResponseWriter, r *http.Request) {
+			id := chi.URLParam(r, "id")
+			if err := habitService.ArchiveHabit(r.Context(), id, true); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.WriteHeader(http.StatusNoContent)
+		})
+
+		r.Patch("/habits/{id}/unarchive", func(w http.ResponseWriter, r *http.Request) {
+			id := chi.URLParam(r, "id")
+			if err := habitService.ArchiveHabit(r.Context(), id, false); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}

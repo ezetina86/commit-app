@@ -3,6 +3,7 @@ import { HabitGrid, type CompletionData } from './components/habit-grid';
 import { BackgroundParticles } from './components/background-particles';
 import { InsightsPanel, type Insight } from './components/insights-panel';
 import { QuoteBanner } from './components/quote-banner';
+import { Toast } from './components/toast';
 
 interface Habit {
   id: string;
@@ -11,6 +12,7 @@ interface Habit {
   tags: string[];
   day_start_offset: number;
   current_streak: number;
+  archived: boolean;
   completions: CompletionData[];
 }
 
@@ -27,11 +29,15 @@ function App() {
   const [editTagsStr, setEditTagsStr] = useState('');
   const [showInsights, setShowInsights] = useState(false);
   const [activeTagFilter, setActiveTagFilter] = useState<string | null>(null);
-  
+  const [addError, setAddError] = useState('');
+  const [showArchived, setShowArchived] = useState(false);
+
   // State for check-in forms
   const [activeCheckIn, setActiveCheckIn] = useState<string | null>(null);
   const [checkInDate, setCheckInDate] = useState(new Intl.DateTimeFormat('en-CA').format(new Date()));
   const [checkInValue, setCheckInValue] = useState<number | ''>(1);
+
+  const [toast, setToast] = useState<{ message: string; visible: boolean }>({ message: '', visible: false });
 
   // Custom Confirmation Modal State
   const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; habitId: string | null; habitName: string }>({
@@ -40,10 +46,10 @@ function App() {
     habitName: '',
   });
 
-  const fetchHabitsAndInsights = async () => {
+  const fetchHabitsAndInsights = async (includeArchived = showArchived) => {
     try {
       const [habitsRes, insightsRes] = await Promise.all([
-        fetch('/api/habits'),
+        fetch(`/api/habits${includeArchived ? '?archived=true' : ''}`),
         fetch('/api/insights')
       ]);
       
@@ -60,8 +66,8 @@ function App() {
   };
 
   useEffect(() => {
-    fetchHabitsAndInsights();
-  }, []);
+    fetchHabitsAndInsights(showArchived);
+  }, [showArchived]);
 
   const allTags = useMemo(() => {
     const tags = new Set<string>();
@@ -82,7 +88,11 @@ function App() {
 
   const createHabit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newHabitName.trim()) return;
+    if (!newHabitName.trim()) {
+      setAddError('Habit name is required');
+      return;
+    }
+    setAddError('');
 
     const tags = parseTags(newHabitTagsStr);
 
@@ -168,7 +178,7 @@ function App() {
   const submitCheckIn = async (e: React.FormEvent, habitId: string) => {
     e.preventDefault();
     const val = Number(checkInValue);
-    if (isNaN(val) || val <= 0) return;
+    if (isNaN(val) || val < 0) return;
 
     try {
       const res = await fetch('/api/check-in', {
@@ -178,10 +188,21 @@ function App() {
       });
       if (res.ok) {
         setActiveCheckIn(null);
+        setToast({ message: 'Check-in saved', visible: true });
         fetchHabitsAndInsights();
       }
     } catch (err) {
       console.error('Failed to check in:', err);
+    }
+  };
+
+  const archiveHabit = async (id: string, archive: boolean) => {
+    const endpoint = archive ? 'archive' : 'unarchive';
+    try {
+      await fetch(`/api/habits/${id}/${endpoint}`, { method: 'PATCH' });
+      fetchHabitsAndInsights();
+    } catch (err) {
+      console.error(`Failed to ${endpoint} habit:`, err);
     }
   };
 
@@ -204,10 +225,24 @@ function App() {
     }
   };
 
+  const streakMilestone = (streak: number): { label: string; className: string } | null => {
+    if (streak >= 100) return { label: '100', className: 'bg-accent-4/20 text-accent-4 border-accent-4/40' };
+    if (streak >= 30)  return { label: '30',  className: 'bg-accent-3/20 text-accent-3 border-accent-3/40' };
+    if (streak >= 7)   return { label: '7',   className: 'bg-accent-2/20 text-accent-2 border-accent-2/40' };
+    return null;
+  };
+
+  const todayStr = new Intl.DateTimeFormat('en-CA').format(new Date());
+  const activeHabits = habits.filter(h => !h.archived);
+  const checkedInToday = activeHabits.filter(h =>
+    (h.completions || []).some(c => c.date === todayStr)
+  ).length;
+
   return (
     <div className="min-h-screen text-text-primary flex flex-col items-center relative">
       <BackgroundParticles />
       <QuoteBanner />
+      <Toast message={toast.message} visible={toast.visible} onDismiss={() => setToast(t => ({ ...t, visible: false }))} />
       
       {/* 
         The main wrapper expands to max-w-[1500px] on 2xl screens to allow for the 2-column grid.
@@ -260,16 +295,19 @@ function App() {
         
         {/* Form and Tag Filter Area */}
         <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1">
           <form onSubmit={createHabit} className="flex flex-wrap gap-2 w-full max-w-3xl">
             <input
               type="text"
               value={newHabitName}
-              onChange={(e) => setNewHabitName(e.target.value)}
+              onChange={(e) => { setNewHabitName(e.target.value); if (e.target.value.trim()) setAddError(''); }}
               placeholder="New Habit..."
               aria-label="Habit name"
+              aria-invalid={addError ? 'true' : undefined}
+              aria-describedby={addError ? 'add-habit-error' : undefined}
               name="habit-name"
               autoComplete="off"
-              className="flex-1 min-w-[200px] bg-surface border-none text-text-primary px-4 py-2 rounded-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none transition-colors placeholder:text-text-secondary/50"
+              className={`flex-1 min-w-[200px] bg-surface border text-text-primary px-4 py-2 rounded-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none transition-colors placeholder:text-text-secondary/50 ${addError ? 'border-red-500/70' : 'border-transparent'}`}
             />
             <input
               type="text"
@@ -298,6 +336,12 @@ function App() {
               Add
             </button>
           </form>
+          {addError && (
+            <p id="add-habit-error" role="alert" className="text-red-400 text-xs font-mono pl-1">
+              {addError}
+            </p>
+          )}
+          </div>
 
           {/* Tags Filter Bar */}
           {allTags.length > 0 && (
@@ -309,18 +353,46 @@ function App() {
               >
                 *all
               </button>
-              {allTags.map(tag => (
-                <button
-                  key={tag}
-                  onClick={() => setActiveTagFilter(tag === activeTagFilter ? null : tag)}
-                  className={`cursor-pointer px-3 py-1 rounded-sm text-xs font-mono transition-colors ${activeTagFilter === tag ? 'bg-accent-3 text-background' : 'bg-surface border border-white/10 text-accent-4 hover:bg-accent-4 hover:text-background'}`}
-                >
-                  #{tag}
-                </button>
-              ))}
+              {allTags.map(tag => {
+                const count = habits.filter(h => (h.tags || []).includes(tag)).length;
+                return (
+                  <button
+                    key={tag}
+                    onClick={() => setActiveTagFilter(tag === activeTagFilter ? null : tag)}
+                    aria-label={`Filter by ${tag}, ${count} habit${count !== 1 ? 's' : ''}`}
+                    aria-pressed={activeTagFilter === tag}
+                    className={`cursor-pointer px-3 py-1 rounded-sm text-xs font-mono transition-colors ${activeTagFilter === tag ? 'bg-accent-3 text-background' : 'bg-surface border border-white/10 text-accent-4 hover:bg-accent-4 hover:text-background'}`}
+                  >
+                    #{tag} <span className="opacity-60">({count})</span>
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
+
+        {/* Summary Row */}
+        {!loading && (
+          <div className="flex flex-wrap items-center justify-between gap-3 px-1 text-xs font-mono text-text-secondary uppercase tracking-widest">
+            <div className="flex gap-4">
+              <span>
+                Total: <span className="text-text-primary font-bold">{activeHabits.length}</span>
+              </span>
+              <span>
+                Today: <span className={`font-bold ${checkedInToday === activeHabits.length && activeHabits.length > 0 ? 'text-accent-4' : 'text-text-primary'}`}>
+                  {checkedInToday}/{activeHabits.length}
+                </span>
+              </span>
+            </div>
+            <button
+              onClick={() => setShowArchived(v => !v)}
+              className="cursor-pointer text-text-secondary hover:text-text-primary transition-colors"
+              aria-pressed={showArchived}
+            >
+              {showArchived ? 'Hide archived' : 'Show archived'}
+            </button>
+          </div>
+        )}
 
         <div aria-live="polite" aria-atomic="false">
         {loading ? (
@@ -331,7 +403,7 @@ function App() {
           /* Grid Layout: 1 column by default, 2 columns on massive screens */
           <div className="grid grid-cols-1 2xl:grid-cols-2 gap-6 items-start">
             {filteredHabits.map((habit) => (
-              <div key={habit.id} className="w-full min-w-0 bg-surface p-6 rounded-sm border border-white/5 group hover:border-white/10 transition-colors">
+              <article key={habit.id} aria-labelledby={`habit-title-${habit.id}`} className={`w-full min-w-0 bg-surface p-6 rounded-sm border border-white/5 group hover:border-white/10 transition-colors ${habit.archived ? 'opacity-50' : ''}`}>
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex-1 mr-4">
                     {editingId === habit.id ? (
@@ -387,11 +459,13 @@ function App() {
                         <button
                           type="button"
                           className="text-xl font-bold uppercase tracking-tight cursor-pointer hover:text-accent-3 transition-colors flex flex-wrap items-center gap-2 text-left w-full"
+                          id={`habit-title-${habit.id}`}
                           onClick={() => startEditing(habit)}
                           aria-label={`Edit habit: ${habit.name}`}
                           title="Click to edit"
                         >
                           {habit.name}
+                          <span className="opacity-0 group-hover:opacity-40 transition-opacity text-[10px] font-normal normal-case tracking-normal text-text-secondary ml-1" aria-hidden="true">[edit]</span>
                           {habit.measure_unit && <span className="text-xs font-normal text-text-secondary normal-case tracking-normal">[{habit.measure_unit}]</span>}
 
                           {/* Display Tags */}
@@ -403,8 +477,17 @@ function App() {
                         </button>
                       </div>
                     )}
-                    <p className="text-text-secondary text-xs uppercase tracking-widest mt-2">
+                    <p className="text-text-secondary text-xs uppercase tracking-widest mt-2 flex items-center gap-2">
                       Current Streak: <span className="text-accent-4 font-bold">{habit.current_streak}</span>
+                      {streakMilestone(habit.current_streak) && (
+                        <span
+                          className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-sm border ${streakMilestone(habit.current_streak)!.className}`}
+                          title={`${streakMilestone(habit.current_streak)!.label}-day milestone reached`}
+                          aria-label={`${streakMilestone(habit.current_streak)!.label}-day streak milestone`}
+                        >
+                          {streakMilestone(habit.current_streak)!.label}d
+                        </span>
+                      )}
                     </p>
                   </div>
                   
@@ -413,13 +496,23 @@ function App() {
                     <div className="flex gap-2">
                       <button
                         onClick={() => toggleCheckIn(habit.id)}
+                        aria-label={activeCheckIn === habit.id ? `Cancel tracking ${habit.name}` : `Track ${habit.name}`}
+                        aria-expanded={activeCheckIn === habit.id}
                         className={`cursor-pointer px-3 py-1 rounded-sm text-xs font-bold uppercase transition-colors ${
-                          activeCheckIn === habit.id 
-                          ? 'bg-accent-3 text-background hover:bg-accent-4' 
+                          activeCheckIn === habit.id
+                          ? 'bg-accent-3 text-background hover:bg-accent-4'
                           : 'bg-accent-1 text-accent-4 hover:bg-accent-3'
                         }`}
                       >
                         {activeCheckIn === habit.id ? 'Cancel' : 'Track'}
+                      </button>
+                      <button
+                        onClick={() => archiveHabit(habit.id, !habit.archived)}
+                        className="cursor-pointer bg-surface hover:bg-white/10 text-text-secondary px-3 py-1 rounded-sm text-xs font-bold uppercase transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                        aria-label={habit.archived ? `Unarchive habit: ${habit.name}` : `Archive habit: ${habit.name}`}
+                        title={habit.archived ? 'Unarchive' : 'Archive'}
+                      >
+                        {habit.archived ? 'Unarchive' : 'Archive'}
                       </button>
                       <button
                         onClick={() => confirmDelete(habit)}
@@ -445,7 +538,7 @@ function App() {
                         />
                         <input
                           type="number"
-                          min="1"
+                          min="0"
                           value={checkInValue}
                           onChange={(e) => setCheckInValue(e.target.value === '' ? '' : Number(e.target.value))}
                           placeholder={habit.measure_unit || 'Value'}
@@ -465,8 +558,8 @@ function App() {
                   </div>
 
                 </div>
-                <HabitGrid completions={habit.completions || []} measureUnit={habit.measure_unit} />
-              </div>
+                <HabitGrid completions={habit.completions || []} measureUnit={habit.measure_unit} habitName={habit.name} />
+              </article>
             ))}
             {filteredHabits.length === 0 && !loading && (
               <div className="text-center py-24 border-2 border-dashed border-white/5 rounded-sm col-span-full">
@@ -477,11 +570,11 @@ function App() {
         )}
         </div>
 
-        {/* We place the Insights Panel inside a dedicated container that spans all columns if necessary */}
+        {/* Insights Panel — fixed overlay, bottom-right */}
         {showInsights && (
-           <div className="w-full">
-             <InsightsPanel insights={insights} onClose={() => setShowInsights(false)} />
-           </div>
+          <div className="fixed bottom-4 right-4 z-40 w-full max-w-sm shadow-2xl">
+            <InsightsPanel insights={insights} onClose={() => setShowInsights(false)} />
+          </div>
         )}
       </main>
       </div>

@@ -16,7 +16,7 @@ type mockHabitRepository struct {
 func (m *mockHabitRepository) CreateHabit(ctx context.Context, name string, measureUnit string, tags []string, offset int) (*models.Habit, error) {
 	return nil, nil
 }
-func (m *mockHabitRepository) GetHabits(ctx context.Context) ([]*models.Habit, error) {
+func (m *mockHabitRepository) GetHabits(ctx context.Context, includeArchived bool) ([]*models.Habit, error) {
 	return m.habits, nil
 }
 func (m *mockHabitRepository) GetHabitByID(ctx context.Context, id string) (*models.Habit, error) {
@@ -32,6 +32,9 @@ func (m *mockHabitRepository) UpdateHabit(ctx context.Context, id, name string, 
 	return nil
 }
 func (m *mockHabitRepository) DeleteHabit(ctx context.Context, id string) error {
+	return nil
+}
+func (m *mockHabitRepository) ArchiveHabit(ctx context.Context, id string, archived bool) error {
 	return nil
 }
 
@@ -98,7 +101,7 @@ func TestListHabits(t *testing.T) {
 
 	service := NewHabitService(repo)
 
-	habits, err := service.ListHabits(context.Background())
+	habits, err := service.ListHabits(context.Background(), false)
 	if err != nil {
 		t.Fatalf("ListHabits failed: %v", err)
 	}
@@ -109,5 +112,55 @@ func TestListHabits(t *testing.T) {
 
 	if habits[0].CurrentStreak != 1 {
 		t.Errorf("Expected streak 1, got %d", habits[0].CurrentStreak)
+	}
+}
+
+func TestArchiveHabit(t *testing.T) {
+	repo := &mockHabitRepository{
+		habits:      []*models.Habit{{ID: "1", Name: "Read"}},
+		completions: map[string][]models.CompletionData{},
+	}
+	svc := NewHabitService(repo)
+
+	if err := svc.ArchiveHabit(context.Background(), "1", true); err != nil {
+		t.Fatalf("ArchiveHabit(true) failed: %v", err)
+	}
+
+	if err := svc.ArchiveHabit(context.Background(), "1", false); err != nil {
+		t.Fatalf("ArchiveHabit(false) failed: %v", err)
+	}
+}
+
+func TestListHabitsWithArchived(t *testing.T) {
+	today := time.Now().UTC().Format("2006-01-02")
+
+	repo := &mockHabitRepository{
+		habits: []*models.Habit{
+			{ID: "1", Name: "Active", Archived: false},
+			{ID: "2", Name: "Archived", Archived: true},
+		},
+		completions: map[string][]models.CompletionData{
+			"1": {{Date: today, Value: 1}},
+			"2": {{Date: today, Value: 1}},
+		},
+	}
+
+	svc := NewHabitService(repo)
+
+	all, err := svc.ListHabits(context.Background(), true)
+	if err != nil {
+		t.Fatalf("ListHabits(true) failed: %v", err)
+	}
+	if len(all) != 2 {
+		t.Errorf("Expected 2 habits with archived, got %d", len(all))
+	}
+
+	active, err := svc.ListHabits(context.Background(), false)
+	if err != nil {
+		t.Fatalf("ListHabits(false) failed: %v", err)
+	}
+	// mock returns all habits regardless (filtering is done by the repository layer)
+	if len(active) != 2 {
+		t.Errorf("Expected 2 from mock (filtering at repo layer), got %d", len(active))
 	}
 }
