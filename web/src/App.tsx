@@ -3,6 +3,7 @@ import { HabitGrid, type CompletionData } from './components/habit-grid';
 import { BackgroundParticles } from './components/background-particles';
 import { InsightsPanel, type Insight } from './components/insights-panel';
 import { QuoteBanner } from './components/quote-banner';
+import { Toast } from './components/toast';
 
 interface Habit {
   id: string;
@@ -33,6 +34,8 @@ function App() {
   const [activeCheckIn, setActiveCheckIn] = useState<string | null>(null);
   const [checkInDate, setCheckInDate] = useState(new Intl.DateTimeFormat('en-CA').format(new Date()));
   const [checkInValue, setCheckInValue] = useState<number | ''>(1);
+
+  const [toast, setToast] = useState<{ message: string; visible: boolean }>({ message: '', visible: false });
 
   // Custom Confirmation Modal State
   const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; habitId: string | null; habitName: string }>({
@@ -183,6 +186,7 @@ function App() {
       });
       if (res.ok) {
         setActiveCheckIn(null);
+        setToast({ message: 'Check-in saved', visible: true });
         fetchHabitsAndInsights();
       }
     } catch (err) {
@@ -213,6 +217,7 @@ function App() {
     <div className="min-h-screen text-text-primary flex flex-col items-center relative">
       <BackgroundParticles />
       <QuoteBanner />
+      <Toast message={toast.message} visible={toast.visible} onDismiss={() => setToast(t => ({ ...t, visible: false }))} />
       
       {/* 
         The main wrapper expands to max-w-[1500px] on 2xl screens to allow for the 2-column grid.
@@ -345,7 +350,7 @@ function App() {
           /* Grid Layout: 1 column by default, 2 columns on massive screens */
           <div className="grid grid-cols-1 2xl:grid-cols-2 gap-6 items-start">
             {filteredHabits.map((habit) => (
-              <div key={habit.id} className="w-full min-w-0 bg-surface p-6 rounded-sm border border-white/5 group hover:border-white/10 transition-colors">
+              <article key={habit.id} aria-labelledby={`habit-title-${habit.id}`} className="w-full min-w-0 bg-surface p-6 rounded-sm border border-white/5 group hover:border-white/10 transition-colors">
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex-1 mr-4">
                     {editingId === habit.id ? (
@@ -401,11 +406,13 @@ function App() {
                         <button
                           type="button"
                           className="text-xl font-bold uppercase tracking-tight cursor-pointer hover:text-accent-3 transition-colors flex flex-wrap items-center gap-2 text-left w-full"
+                          id={`habit-title-${habit.id}`}
                           onClick={() => startEditing(habit)}
                           aria-label={`Edit habit: ${habit.name}`}
                           title="Click to edit"
                         >
                           {habit.name}
+                          <span className="opacity-0 group-hover:opacity-40 transition-opacity text-[10px] font-normal normal-case tracking-normal text-text-secondary ml-1" aria-hidden="true">[edit]</span>
                           {habit.measure_unit && <span className="text-xs font-normal text-text-secondary normal-case tracking-normal">[{habit.measure_unit}]</span>}
 
                           {/* Display Tags */}
@@ -427,9 +434,11 @@ function App() {
                     <div className="flex gap-2">
                       <button
                         onClick={() => toggleCheckIn(habit.id)}
+                        aria-label={activeCheckIn === habit.id ? `Cancel tracking ${habit.name}` : `Track ${habit.name}`}
+                        aria-expanded={activeCheckIn === habit.id}
                         className={`cursor-pointer px-3 py-1 rounded-sm text-xs font-bold uppercase transition-colors ${
-                          activeCheckIn === habit.id 
-                          ? 'bg-accent-3 text-background hover:bg-accent-4' 
+                          activeCheckIn === habit.id
+                          ? 'bg-accent-3 text-background hover:bg-accent-4'
                           : 'bg-accent-1 text-accent-4 hover:bg-accent-3'
                         }`}
                       >
@@ -479,8 +488,8 @@ function App() {
                   </div>
 
                 </div>
-                <HabitGrid completions={habit.completions || []} measureUnit={habit.measure_unit} />
-              </div>
+                <HabitGrid completions={habit.completions || []} measureUnit={habit.measure_unit} habitName={habit.name} />
+              </article>
             ))}
             {filteredHabits.length === 0 && !loading && (
               <div className="text-center py-24 border-2 border-dashed border-white/5 rounded-sm col-span-full">
