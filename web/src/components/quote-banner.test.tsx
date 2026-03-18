@@ -13,7 +13,7 @@ describe('QuoteBanner Component', () => {
     (fetch as Mock).mockImplementation(() => new Promise(() => {}));
     
     render(<QuoteBanner />);
-    expect(screen.getByText('_')).toHaveClass('animate-pulse');
+    expect(screen.getByText('_')).toHaveClass('motion-safe:animate-pulse');
   });
 
   it('renders quote when fetched successfully', async () => {
@@ -31,7 +31,7 @@ describe('QuoteBanner Component', () => {
     render(<QuoteBanner />);
 
     await waitFor(() => {
-      expect(screen.getByText(/"Test quote"/)).toBeInTheDocument();
+      expect(screen.getByText(/\u201CTest quote\u201D/)).toBeInTheDocument();
       expect(screen.getByText(/Test Author/)).toBeInTheDocument();
       expect(screen.getByText(/--category success/)).toBeInTheDocument();
     });
@@ -55,7 +55,7 @@ describe('QuoteBanner Component', () => {
     await waitFor(() => {
       // Should find the truncated version (200 chars + …)
       const truncated = "A".repeat(200) + "…";
-      expect(screen.getByText(`"${truncated}"`)).toBeInTheDocument();
+      expect(screen.getByText(new RegExp('\u201C' + truncated + '\u201D'))).toBeInTheDocument();
     });
   });
 });

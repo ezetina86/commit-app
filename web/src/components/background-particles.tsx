@@ -6,6 +6,7 @@ import { loadPolygonPath } from "@tsparticles/path-polygon";
 
 export const BackgroundParticles = () => {
   const [init, setInit] = useState(false);
+  const prefersReducedMotion = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   useEffect(() => {
     initParticlesEngine(async (engine) => {
@@ -17,9 +18,7 @@ export const BackgroundParticles = () => {
     });
   }, []);
 
-  const particlesLoaded = async (container?: Container): Promise<void> => {
-    console.log("Particles loaded", container);
-  };
+  const particlesLoaded = async (_container?: Container): Promise<void> => {};
 
   const options: ISourceOptions = {
     "autoPlay": true,
@@ -557,10 +556,10 @@ export const BackgroundParticles = () => {
       }
     },
     "motion": {
-      "disable": true,
+      "disable": prefersReducedMotion,
       "reduce": {
         "factor": 4,
-        "value": true
+        "value": prefersReducedMotion
       }
     }
   };
