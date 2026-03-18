@@ -49,7 +49,12 @@ func main() {
 				return
 			}
 
-			reqUrl := "https://api.api-ninjas.com/v1/quotes"
+			quoteCategories := []string{
+				"inspirational", "success", "happiness", "life", "motivational",
+				"wisdom", "courage", "perseverance", "focus", "discipline",
+			}
+			category := quoteCategories[rand.Intn(len(quoteCategories))]
+			reqUrl := "https://api.api-ninjas.com/v1/quotes?category=" + category
 
 			reqAPI, err := http.NewRequest("GET", reqUrl, nil)
 			if err != nil {

@@ -176,7 +176,7 @@ function App() {
   const submitCheckIn = async (e: React.FormEvent, habitId: string) => {
     e.preventDefault();
     const val = Number(checkInValue);
-    if (isNaN(val) || val <= 0) return;
+    if (isNaN(val) || val < 0) return;
 
     try {
       const res = await fetch('/api/check-in', {
@@ -328,15 +328,20 @@ function App() {
               >
                 *all
               </button>
-              {allTags.map(tag => (
-                <button
-                  key={tag}
-                  onClick={() => setActiveTagFilter(tag === activeTagFilter ? null : tag)}
-                  className={`cursor-pointer px-3 py-1 rounded-sm text-xs font-mono transition-colors ${activeTagFilter === tag ? 'bg-accent-3 text-background' : 'bg-surface border border-white/10 text-accent-4 hover:bg-accent-4 hover:text-background'}`}
-                >
-                  #{tag}
-                </button>
-              ))}
+              {allTags.map(tag => {
+                const count = habits.filter(h => (h.tags || []).includes(tag)).length;
+                return (
+                  <button
+                    key={tag}
+                    onClick={() => setActiveTagFilter(tag === activeTagFilter ? null : tag)}
+                    aria-label={`Filter by ${tag}, ${count} habit${count !== 1 ? 's' : ''}`}
+                    aria-pressed={activeTagFilter === tag}
+                    className={`cursor-pointer px-3 py-1 rounded-sm text-xs font-mono transition-colors ${activeTagFilter === tag ? 'bg-accent-3 text-background' : 'bg-surface border border-white/10 text-accent-4 hover:bg-accent-4 hover:text-background'}`}
+                  >
+                    #{tag} <span className="opacity-60">({count})</span>
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
@@ -468,7 +473,7 @@ function App() {
                         />
                         <input
                           type="number"
-                          min="1"
+                          min="0"
                           value={checkInValue}
                           onChange={(e) => setCheckInValue(e.target.value === '' ? '' : Number(e.target.value))}
                           placeholder={habit.measure_unit || 'Value'}
@@ -500,11 +505,11 @@ function App() {
         )}
         </div>
 
-        {/* We place the Insights Panel inside a dedicated container that spans all columns if necessary */}
+        {/* Insights Panel — fixed overlay, bottom-right */}
         {showInsights && (
-           <div className="w-full">
-             <InsightsPanel insights={insights} onClose={() => setShowInsights(false)} />
-           </div>
+          <div className="fixed bottom-4 right-4 z-40 w-full max-w-sm shadow-2xl">
+            <InsightsPanel insights={insights} onClose={() => setShowInsights(false)} />
+          </div>
         )}
       </main>
       </div>
