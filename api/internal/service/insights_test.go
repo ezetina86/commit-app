@@ -16,7 +16,7 @@ type mockHabitRepository struct {
 func (m *mockHabitRepository) CreateHabit(ctx context.Context, name string, measureUnit string, tags []string, offset int) (*models.Habit, error) {
 	return nil, nil
 }
-func (m *mockHabitRepository) GetHabits(ctx context.Context) ([]*models.Habit, error) {
+func (m *mockHabitRepository) GetHabits(ctx context.Context, includeArchived bool) ([]*models.Habit, error) {
 	return m.habits, nil
 }
 func (m *mockHabitRepository) GetHabitByID(ctx context.Context, id string) (*models.Habit, error) {
@@ -32,6 +32,9 @@ func (m *mockHabitRepository) UpdateHabit(ctx context.Context, id, name string, 
 	return nil
 }
 func (m *mockHabitRepository) DeleteHabit(ctx context.Context, id string) error {
+	return nil
+}
+func (m *mockHabitRepository) ArchiveHabit(ctx context.Context, id string, archived bool) error {
 	return nil
 }
 
@@ -98,7 +101,7 @@ func TestListHabits(t *testing.T) {
 
 	service := NewHabitService(repo)
 
-	habits, err := service.ListHabits(context.Background())
+	habits, err := service.ListHabits(context.Background(), false)
 	if err != nil {
 		t.Fatalf("ListHabits failed: %v", err)
 	}

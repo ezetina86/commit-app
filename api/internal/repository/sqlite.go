@@ -55,11 +55,11 @@ func (r *SQLiteRepository) initSchema() error {
 		}
 	}
 
-	// Safely add new columns for quantitative tracking. 
-	// Ignoring errors as they will fail if columns already exist.
+	// Safely add new columns. Errors are ignored as they fail when columns already exist.
 	r.db.Exec(`ALTER TABLE habits ADD COLUMN measure_unit TEXT DEFAULT ''`)
 	r.db.Exec(`ALTER TABLE completions ADD COLUMN value INTEGER DEFAULT 1`)
 	r.db.Exec(`ALTER TABLE habits ADD COLUMN tags TEXT DEFAULT '[]'`)
+	r.db.Exec(`ALTER TABLE habits ADD COLUMN archived INTEGER DEFAULT 0`)
 
 	return nil
 }
@@ -86,8 +86,11 @@ func (r *SQLiteRepository) CreateHabit(ctx context.Context, name string, measure
 	}, nil
 }
 
-func (r *SQLiteRepository) GetHabits(ctx context.Context) ([]*models.Habit, error) {
-	query := `SELECT id, name, IFNULL(measure_unit, ''), IFNULL(tags, '[]'), day_start_offset, created_at FROM habits`
+func (r *SQLiteRepository) GetHabits(ctx context.Context, includeArchived bool) ([]*models.Habit, error) {
+	query := `SELECT id, name, IFNULL(measure_unit, ''), IFNULL(tags, '[]'), day_start_offset, IFNULL(archived, 0), created_at FROM habits`
+	if !includeArchived {
+		query += ` WHERE IFNULL(archived, 0) = 0`
+	}
 	rows, err := r.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
@@ -98,32 +101,45 @@ func (r *SQLiteRepository) GetHabits(ctx context.Context) ([]*models.Habit, erro
 	for rows.Next() {
 		h := &models.Habit{}
 		var tagsStr string
-		if err := rows.Scan(&h.ID, &h.Name, &h.MeasureUnit, &tagsStr, &h.DayStartOffset, &h.CreatedAt); err != nil {
+		var archived int
+		if err := rows.Scan(&h.ID, &h.Name, &h.MeasureUnit, &tagsStr, &h.DayStartOffset, &archived, &h.CreatedAt); err != nil {
 			return nil, err
 		}
-		
+		h.Archived = archived != 0
+
 		var tags []string
 		json.Unmarshal([]byte(tagsStr), &tags)
 		h.Tags = tags
-		
+
 		habits = append(habits, h)
 	}
 	return habits, nil
 }
 
+func (r *SQLiteRepository) ArchiveHabit(ctx context.Context, id string, archived bool) error {
+	val := 0
+	if archived {
+		val = 1
+	}
+	_, err := r.db.ExecContext(ctx, `UPDATE habits SET archived = ? WHERE id = ?`, val, id)
+	return err
+}
+
 func (r *SQLiteRepository) GetHabitByID(ctx context.Context, id string) (*models.Habit, error) {
-	query := `SELECT id, name, IFNULL(measure_unit, ''), IFNULL(tags, '[]'), day_start_offset, created_at FROM habits WHERE id = ?`
+	query := `SELECT id, name, IFNULL(measure_unit, ''), IFNULL(tags, '[]'), day_start_offset, IFNULL(archived, 0), created_at FROM habits WHERE id = ?`
 	h := &models.Habit{}
 	var tagsStr string
-	err := r.db.QueryRowContext(ctx, query, id).Scan(&h.ID, &h.Name, &h.MeasureUnit, &tagsStr, &h.DayStartOffset, &h.CreatedAt)
+	var archived int
+	err := r.db.QueryRowContext(ctx, query, id).Scan(&h.ID, &h.Name, &h.MeasureUnit, &tagsStr, &h.DayStartOffset, &archived, &h.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
-	
+	h.Archived = archived != 0
+
 	var tags []string
 	json.Unmarshal([]byte(tagsStr), &tags)
 	h.Tags = tags
-	
+
 	return h, nil
 }
 

@@ -12,6 +12,7 @@ interface Habit {
   tags: string[];
   day_start_offset: number;
   current_streak: number;
+  archived: boolean;
   completions: CompletionData[];
 }
 
@@ -29,6 +30,7 @@ function App() {
   const [showInsights, setShowInsights] = useState(false);
   const [activeTagFilter, setActiveTagFilter] = useState<string | null>(null);
   const [addError, setAddError] = useState('');
+  const [showArchived, setShowArchived] = useState(false);
 
   // State for check-in forms
   const [activeCheckIn, setActiveCheckIn] = useState<string | null>(null);
@@ -44,10 +46,10 @@ function App() {
     habitName: '',
   });
 
-  const fetchHabitsAndInsights = async () => {
+  const fetchHabitsAndInsights = async (includeArchived = showArchived) => {
     try {
       const [habitsRes, insightsRes] = await Promise.all([
-        fetch('/api/habits'),
+        fetch(`/api/habits${includeArchived ? '?archived=true' : ''}`),
         fetch('/api/insights')
       ]);
       
@@ -64,8 +66,8 @@ function App() {
   };
 
   useEffect(() => {
-    fetchHabitsAndInsights();
-  }, []);
+    fetchHabitsAndInsights(showArchived);
+  }, [showArchived]);
 
   const allTags = useMemo(() => {
     const tags = new Set<string>();
@@ -194,6 +196,16 @@ function App() {
     }
   };
 
+  const archiveHabit = async (id: string, archive: boolean) => {
+    const endpoint = archive ? 'archive' : 'unarchive';
+    try {
+      await fetch(`/api/habits/${id}/${endpoint}`, { method: 'PATCH' });
+      fetchHabitsAndInsights();
+    } catch (err) {
+      console.error(`Failed to ${endpoint} habit:`, err);
+    }
+  };
+
   const startEditing = (habit: Habit) => {
     setEditingId(habit.id);
     setEditName(habit.name);
@@ -212,6 +224,19 @@ function App() {
       setEditingId(null);
     }
   };
+
+  const streakMilestone = (streak: number): { label: string; className: string } | null => {
+    if (streak >= 100) return { label: '100', className: 'bg-accent-4/20 text-accent-4 border-accent-4/40' };
+    if (streak >= 30)  return { label: '30',  className: 'bg-accent-3/20 text-accent-3 border-accent-3/40' };
+    if (streak >= 7)   return { label: '7',   className: 'bg-accent-2/20 text-accent-2 border-accent-2/40' };
+    return null;
+  };
+
+  const todayStr = new Intl.DateTimeFormat('en-CA').format(new Date());
+  const activeHabits = habits.filter(h => !h.archived);
+  const checkedInToday = activeHabits.filter(h =>
+    (h.completions || []).some(c => c.date === todayStr)
+  ).length;
 
   return (
     <div className="min-h-screen text-text-primary flex flex-col items-center relative">
@@ -346,6 +371,29 @@ function App() {
           )}
         </div>
 
+        {/* Summary Row */}
+        {!loading && (
+          <div className="flex flex-wrap items-center justify-between gap-3 px-1 text-xs font-mono text-text-secondary uppercase tracking-widest">
+            <div className="flex gap-4">
+              <span>
+                Total: <span className="text-text-primary font-bold">{activeHabits.length}</span>
+              </span>
+              <span>
+                Today: <span className={`font-bold ${checkedInToday === activeHabits.length && activeHabits.length > 0 ? 'text-accent-4' : 'text-text-primary'}`}>
+                  {checkedInToday}/{activeHabits.length}
+                </span>
+              </span>
+            </div>
+            <button
+              onClick={() => setShowArchived(v => !v)}
+              className="cursor-pointer text-text-secondary hover:text-text-primary transition-colors"
+              aria-pressed={showArchived}
+            >
+              {showArchived ? 'Hide archived' : 'Show archived'}
+            </button>
+          </div>
+        )}
+
         <div aria-live="polite" aria-atomic="false">
         {loading ? (
           <div className="text-center py-12 text-text-secondary uppercase tracking-widest motion-safe:animate-pulse">
@@ -355,7 +403,7 @@ function App() {
           /* Grid Layout: 1 column by default, 2 columns on massive screens */
           <div className="grid grid-cols-1 2xl:grid-cols-2 gap-6 items-start">
             {filteredHabits.map((habit) => (
-              <article key={habit.id} aria-labelledby={`habit-title-${habit.id}`} className="w-full min-w-0 bg-surface p-6 rounded-sm border border-white/5 group hover:border-white/10 transition-colors">
+              <article key={habit.id} aria-labelledby={`habit-title-${habit.id}`} className={`w-full min-w-0 bg-surface p-6 rounded-sm border border-white/5 group hover:border-white/10 transition-colors ${habit.archived ? 'opacity-50' : ''}`}>
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex-1 mr-4">
                     {editingId === habit.id ? (
@@ -429,8 +477,17 @@ function App() {
                         </button>
                       </div>
                     )}
-                    <p className="text-text-secondary text-xs uppercase tracking-widest mt-2">
+                    <p className="text-text-secondary text-xs uppercase tracking-widest mt-2 flex items-center gap-2">
                       Current Streak: <span className="text-accent-4 font-bold">{habit.current_streak}</span>
+                      {streakMilestone(habit.current_streak) && (
+                        <span
+                          className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-sm border ${streakMilestone(habit.current_streak)!.className}`}
+                          title={`${streakMilestone(habit.current_streak)!.label}-day milestone reached`}
+                          aria-label={`${streakMilestone(habit.current_streak)!.label}-day streak milestone`}
+                        >
+                          {streakMilestone(habit.current_streak)!.label}d
+                        </span>
+                      )}
                     </p>
                   </div>
                   
@@ -448,6 +505,14 @@ function App() {
                         }`}
                       >
                         {activeCheckIn === habit.id ? 'Cancel' : 'Track'}
+                      </button>
+                      <button
+                        onClick={() => archiveHabit(habit.id, !habit.archived)}
+                        className="cursor-pointer bg-surface hover:bg-white/10 text-text-secondary px-3 py-1 rounded-sm text-xs font-bold uppercase transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                        aria-label={habit.archived ? `Unarchive habit: ${habit.name}` : `Archive habit: ${habit.name}`}
+                        title={habit.archived ? 'Unarchive' : 'Archive'}
+                      >
+                        {habit.archived ? 'Unarchive' : 'Archive'}
                       </button>
                       <button
                         onClick={() => confirmDelete(habit)}
