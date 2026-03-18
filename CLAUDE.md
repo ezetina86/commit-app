@@ -51,10 +51,16 @@ commit_app/
 ├── web/                    # React SPA (Vite + TypeScript + Tailwind v4)
 │   └── src/
 │       ├── App.tsx         # Root component — all state management and API calls live here
+│       ├── App.test.tsx    # Integration tests for App state management and new features
 │       └── components/
-│           ├── habit-grid.tsx          # SVG-based 52-week contribution grid
-│           ├── insights-panel.tsx      # "Terminal" insights overlay
-│           ├── quote-banner.tsx        # Daily motivational quote from API Ninjas
+│           ├── habit-grid.tsx              # SVG-based 52-week contribution grid
+│           ├── habit-grid.test.tsx
+│           ├── insights-panel.tsx          # Fixed-overlay "terminal" insights panel
+│           ├── insights-panel.test.tsx
+│           ├── quote-banner.tsx            # Daily motivational quote from API Ninjas
+│           ├── quote-banner.test.tsx
+│           ├── toast.tsx                   # Auto-dismissing status notification
+│           ├── toast.test.tsx
 │           └── background-particles.tsx
 ├── data/                   # SQLite DB persisted here (mounted as Docker volume)
 ├── docker-compose.yml
@@ -69,6 +75,22 @@ commit_app/
 
 **Streak logic**: `day_start_offset` (minutes) allows habits to use a custom "day boundary" — e.g., a night owl can have their day reset at 3am instead of midnight.
 
+**Archive logic**: Habits can be soft-archived (`archived = 1` in SQLite). Archived habits are hidden from the default list and dimmed when shown. `GET /api/habits?archived=true` returns all habits including archived ones.
+
+## API Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/habits` | List active habits. Add `?archived=true` to include archived. |
+| `POST` | `/api/habits` | Create a habit `{ name, measure_unit, tags[], day_start_offset }` |
+| `PUT` | `/api/habits/{id}` | Update habit name, unit, tags, or offset |
+| `DELETE` | `/api/habits/{id}` | Permanently delete a habit and all its completions |
+| `PATCH` | `/api/habits/{id}/archive` | Soft-archive a habit (hidden from default list) |
+| `PATCH` | `/api/habits/{id}/unarchive` | Restore an archived habit |
+| `POST` | `/api/check-in` | Log a value `{ habit_id, date, value }`. Value 0 is allowed. |
+| `GET` | `/api/insights` | Generate per-habit activity summaries for the last 30 days |
+| `GET` | `/api/quote` | Fetch a random motivational quote (rotates across 10 categories) |
+
 ## Coding Standards
 
 - **TypeScript**: Strict mode. Use interfaces for all API response types.
@@ -81,21 +103,28 @@ commit_app/
 
 ## Design System
 
-| Token         | Value     | Usage                        |
-|---------------|-----------|------------------------------|
-| background    | `#0B0E14` | Primary background           |
-| surface       | `#161B22` | Cards, modals                |
-| text-primary  | `#E6EDF3` | Main text                    |
-| text-secondary| `#7D8590` | Metadata, timestamps         |
-| accent-1      | `#0E4429` | Low-intensity grid cell      |
-| accent-4      | `#39D353` | High-intensity / CTA green   |
+| Token         | Value     | Usage                                    |
+|---------------|-----------|------------------------------------------|
+| background    | `#0B0E14` | Primary background                       |
+| surface       | `#161B22` | Cards, modals                            |
+| text-primary  | `#E6EDF3` | Main text                                |
+| text-secondary| `#7D8590` | Metadata, timestamps                     |
+| accent-1      | `#0E4429` | Low-intensity grid cell                  |
+| accent-2      | `#006D32` | Mid-low intensity / 7-day streak badge   |
+| accent-3      | `#26A641` | Mid-high intensity / 30-day streak badge |
+| accent-4      | `#39D353` | High-intensity / CTA green / 100-day badge |
 
 ## Testing
 
 Minimum **70% coverage** required for both frontend and backend. Every new change must include tests.
 
-- **Backend**: standard `testing` package. Focus on `internal/service` (streak calculation, insights).
-- **Frontend**: Vitest + React Testing Library. Focus on `habit-grid.tsx` coordinate/intensity logic and `App.tsx` state management.
+- **Backend**: standard `testing` package. Focus on `internal/service` (streak calculation, insights, archive).
+- **Frontend**: Vitest + React Testing Library. Test files live next to the component they test.
+  - `App.test.tsx` — form validation, check-in flow, toast, delete modal, edit habit, archive, filter counts, summary row, streak badges
+  - `habit-grid.test.tsx` — coordinate/intensity logic, tooltip rendering
+  - `toast.test.tsx` — visibility, aria-live, auto-dismiss timer
+  - `insights-panel.test.tsx` — render, typewriter, close
+  - `quote-banner.test.tsx` — fetch, truncation, loading state
 
 ## Branching
 
