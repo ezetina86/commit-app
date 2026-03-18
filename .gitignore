@@ -20,6 +20,7 @@ node_modules/
 .docker/
 
 # Data
+data/habit.db
 data/habit.db-journal
 data/habit.db-shm
 data/habit.db-wal
