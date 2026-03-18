@@ -27,7 +27,8 @@ function App() {
   const [editTagsStr, setEditTagsStr] = useState('');
   const [showInsights, setShowInsights] = useState(false);
   const [activeTagFilter, setActiveTagFilter] = useState<string | null>(null);
-  
+  const [addError, setAddError] = useState('');
+
   // State for check-in forms
   const [activeCheckIn, setActiveCheckIn] = useState<string | null>(null);
   const [checkInDate, setCheckInDate] = useState(new Intl.DateTimeFormat('en-CA').format(new Date()));
@@ -82,7 +83,11 @@ function App() {
 
   const createHabit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newHabitName.trim()) return;
+    if (!newHabitName.trim()) {
+      setAddError('Habit name is required');
+      return;
+    }
+    setAddError('');
 
     const tags = parseTags(newHabitTagsStr);
 
@@ -260,16 +265,19 @@ function App() {
         
         {/* Form and Tag Filter Area */}
         <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1">
           <form onSubmit={createHabit} className="flex flex-wrap gap-2 w-full max-w-3xl">
             <input
               type="text"
               value={newHabitName}
-              onChange={(e) => setNewHabitName(e.target.value)}
+              onChange={(e) => { setNewHabitName(e.target.value); if (e.target.value.trim()) setAddError(''); }}
               placeholder="New Habit..."
               aria-label="Habit name"
+              aria-invalid={addError ? 'true' : undefined}
+              aria-describedby={addError ? 'add-habit-error' : undefined}
               name="habit-name"
               autoComplete="off"
-              className="flex-1 min-w-[200px] bg-surface border-none text-text-primary px-4 py-2 rounded-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none transition-colors placeholder:text-text-secondary/50"
+              className={`flex-1 min-w-[200px] bg-surface border text-text-primary px-4 py-2 rounded-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none transition-colors placeholder:text-text-secondary/50 ${addError ? 'border-red-500/70' : 'border-transparent'}`}
             />
             <input
               type="text"
@@ -298,6 +306,12 @@ function App() {
               Add
             </button>
           </form>
+          {addError && (
+            <p id="add-habit-error" role="alert" className="text-red-400 text-xs font-mono pl-1">
+              {addError}
+            </p>
+          )}
+          </div>
 
           {/* Tags Filter Bar */}
           {allTags.length > 0 && (

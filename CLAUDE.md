@@ -9,22 +9,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 make build          # Clean, prune, and rebuild all containers (docker-compose up --build -d)
 make clean          # Stop and remove containers
 make test-all       # Run both backend and frontend tests
+make test-frontend  # Run frontend tests with coverage
+make test-backend   # Run backend tests with coverage
 ```
 
-### Backend (Go)
+> **IMPORTANT**: The app is fully Dockerized. Always use `make` commands — never invoke `docker`, `docker-compose`, `podman`, `podman-compose`, `npm`, or `go` directly for building or testing. The Makefile handles tool detection (podman vs docker) and ensures consistent behaviour across environments.
+
+### Backend (Go) — reference only, use `make test-backend` to run tests
 ```bash
 cd api
-go test -cover ./...               # Run all tests with coverage
-go test ./internal/service/...     # Run a specific package's tests
+go test ./internal/service/...     # (run a specific package during local dev only)
 go build ./cmd/api/                # Build the binary
 ```
 
-### Frontend (React)
+### Frontend (React) — reference only, use `make test-frontend` to run tests
 ```bash
 cd web
 npm run dev        # Start dev server (Vite, proxies /api to :8080)
-npm run test       # Run tests once
-npm run coverage   # Run tests with coverage report
 npm run lint       # ESLint
 npm run build      # Production build (tsc + vite)
 ```
