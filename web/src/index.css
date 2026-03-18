@@ -16,5 +16,6 @@
   body {
     @apply bg-background text-text-primary antialiased;
     font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    color-scheme: dark;
   }
 }

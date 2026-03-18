@@ -44,7 +44,7 @@ export const QuoteBanner = () => {
   // Protect against malformed API data that returns massive paragraphs
   const maxQuoteLength = 200;
   const safeQuote = quoteData.quote.length > maxQuoteLength 
-    ? quoteData.quote.substring(0, maxQuoteLength).trim() + "..."
+    ? quoteData.quote.substring(0, maxQuoteLength).trim() + "…"
     : quoteData.quote;
 
   return (
