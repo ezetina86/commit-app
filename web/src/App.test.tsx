@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import App from './App';
 
@@ -214,7 +214,7 @@ describe('App — Track (check-in) form', () => {
   });
 
   it('submits check-in and shows toast on success', async () => {
-    (fetch as Mock).mockImplementation((url: string, opts?: RequestInit) => {
+    (fetch as Mock).mockImplementation((url: string) => {
       if (url === '/api/check-in') return Promise.resolve({ ok: true });
       if (url.includes('/api/quote')) return Promise.resolve({ ok: true, json: async () => ({ quote: 'Q', author: 'A', category: 'success' }) });
       if (url.includes('/api/habits')) return Promise.resolve({ ok: true, json: async () => mockHabits });
