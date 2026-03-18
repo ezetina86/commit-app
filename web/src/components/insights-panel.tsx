@@ -64,9 +64,10 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({ insights, onClose 
           <div className="w-2 h-2 rounded-full bg-accent-4 animate-pulse"></div>
           <h3 className="text-[10px] uppercase tracking-widest text-text-secondary font-bold">system_insights.sh</h3>
         </div>
-        <button 
+        <button
           onClick={onClose}
           className="text-text-secondary hover:text-text-primary transition-colors cursor-pointer text-xs"
+          aria-label="Close insights panel"
           title="Close terminal"
         >
           [X]

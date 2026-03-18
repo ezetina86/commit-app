@@ -53,8 +53,8 @@ describe('QuoteBanner Component', () => {
     render(<QuoteBanner />);
 
     await waitFor(() => {
-      // Should find the truncated version (200 chars + ...)
-      const truncated = "A".repeat(200) + "...";
+      // Should find the truncated version (200 chars + …)
+      const truncated = "A".repeat(200) + "…";
       expect(screen.getByText(`"${truncated}"`)).toBeInTheDocument();
     });
   });
