@@ -1,7 +1,7 @@
 ---
-description: Create a branch, commit with conventional commits, push, and open a PR to dev
-argument-hint: <branch-name>
-allowed-tools: Bash(git status:*), Bash(git diff:*), Bash(git branch:*), Bash(git checkout:*), Bash(git add:*), Bash(git commit:*), Bash(git push:*), Bash(gh pr create:*), Bash(gh pr view:*), Bash(git log:*)
+description: Branch from dev, commit with conventional commits, push, and open a PR to dev
+argument-hint: [<prefix/branch-name>]
+allowed-tools: Bash(git status:*), Bash(git diff:*), Bash(git branch:*), Bash(git checkout:*), Bash(git fetch:*), Bash(git add:*), Bash(git commit:*), Bash(git push:*), Bash(gh pr create:*), Bash(gh pr view:*), Bash(git log:*)
 ---
 
 ## Context
@@ -13,35 +13,60 @@ allowed-tools: Bash(git status:*), Bash(git diff:*), Bash(git branch:*), Bash(gi
 
 ## Your task
 
-You are the `/ship` command. Your job is to take all current changes, put them on a feature branch, commit them using Conventional Commits, push, and open a PR targeting `dev`.
+You are the `/ship` command. Your job is to take all current changes, create a new branch off `dev`, commit them using Conventional Commits, push, and open a PR targeting `dev`.
 
 **Branch name argument:** $ARGUMENTS
 
-### Step 1 — Determine the branch
+### Step 1 — Determine the branch name
 
-- If `$ARGUMENTS` is provided, the target branch name is `feature/$ARGUMENTS`.
-- If `$ARGUMENTS` is empty, derive a short kebab-case name from the diff summary and use `feature/<derived-name>`.
-- If the current branch already starts with `feature/`, skip branch creation and stay on it.
-- Otherwise: `git checkout -b feature/<name>`
+Analyze the diff to determine the right branch prefix and name:
 
-### Step 2 — Stage all changes
+- **Prefix rules** (based on primary change type in the diff):
+  - `feature/` — new functionality
+  - `fix/` — bug fixes
+  - `hotfix/` — urgent production fixes
+  - `chore/` — tooling, deps, config
+  - `docs/` — documentation only
 
-Run `git add -A` to stage everything (the user has already reviewed what needs shipping).
+- **If `$ARGUMENTS` is provided:**
+  - If it already contains a `/` (e.g. `fix/login-bug`), use it as-is
+  - Otherwise, determine the right prefix from the diff and use `<prefix>/$ARGUMENTS`
+
+- **If `$ARGUMENTS` is empty:**
+  - Derive a short kebab-case slug from the diff summary (max 4 words)
+  - Combine with the correct prefix: e.g. `fix/local-timezone-dates`
+
+### Step 2 — Create branch from dev
+
+Always create a fresh branch from `dev`, regardless of the current branch:
+
+```
+git fetch origin dev
+git checkout -b <branch-name> origin/dev
+```
+
+Then cherry-pick or re-apply the staged/unstaged changes from the working tree onto this new branch. Since the files are already modified in the working tree, just stage them:
+
+```
+git add -A
+```
 
 ### Step 3 — Write a Conventional Commit message
 
 Analyze the full diff and write a commit message following this project's convention:
 - Format: `type: short imperative description`
 - Types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `style`
-- No emoji, no scope parentheses (match the project style: `feat: add dark mode` not `feat(ui): add dark mode`)
-- If the diff spans multiple concerns, write a multi-line message with a blank line after the subject and bullet points for each change.
-- Keep the subject line under 72 characters.
+- No emoji, no scope parentheses (e.g. `fix: correct timezone for check-ins` not `fix(ui): correct timezone`)
+- If the diff spans multiple concerns, use a multi-line message: subject, blank line, then bullet points
+- Keep the subject line under 72 characters
 
 Run: `git commit -m "<message>"`
 
 ### Step 4 — Push
 
-Run: `git push -u origin <branch-name>`
+```
+git push -u origin <branch-name>
+```
 
 ### Step 5 — Open PR to `dev`
 
