@@ -30,7 +30,7 @@ function App() {
   
   // State for check-in forms
   const [activeCheckIn, setActiveCheckIn] = useState<string | null>(null);
-  const [checkInDate, setCheckInDate] = useState(new Date().toLocaleDateString('en-CA'));
+  const [checkInDate, setCheckInDate] = useState(new Intl.DateTimeFormat('en-CA').format(new Date()));
   const [checkInValue, setCheckInValue] = useState<number | ''>(1);
 
   // Custom Confirmation Modal State
@@ -198,7 +198,7 @@ function App() {
       setActiveCheckIn(null);
     } else {
       setActiveCheckIn(habitId);
-      setCheckInDate(new Date().toLocaleDateString('en-CA'));
+      setCheckInDate(new Intl.DateTimeFormat('en-CA').format(new Date()));
       setCheckInValue(1);
       setEditingId(null);
     }
@@ -324,7 +324,7 @@ function App() {
 
         <div aria-live="polite" aria-atomic="false">
         {loading ? (
-          <div className="text-center py-12 text-text-secondary uppercase tracking-widest animate-pulse">
+          <div className="text-center py-12 text-text-secondary uppercase tracking-widest motion-safe:animate-pulse">
             Loading lattice...
           </div>
         ) : (
@@ -346,7 +346,6 @@ function App() {
                           aria-label="Habit name"
                           name="edit-name"
                           autoComplete="off"
-                          autoFocus
                           className="flex-1 min-w-[150px] bg-background border-none text-text-primary px-2 py-1 text-xl font-bold uppercase tracking-tight rounded-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none"
                         />
                         <input
@@ -385,25 +384,23 @@ function App() {
                       </form>
                     ) : (
                       <div>
-                        <h2
-                          className="text-xl font-bold uppercase tracking-tight cursor-pointer hover:text-accent-3 transition-colors flex flex-wrap items-center gap-2"
+                        <button
+                          type="button"
+                          className="text-xl font-bold uppercase tracking-tight cursor-pointer hover:text-accent-3 transition-colors flex flex-wrap items-center gap-2 text-left w-full"
                           onClick={() => startEditing(habit)}
-                          onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && startEditing(habit)}
-                          role="button"
-                          tabIndex={0}
                           aria-label={`Edit habit: ${habit.name}`}
                           title="Click to edit"
                         >
                           {habit.name}
                           {habit.measure_unit && <span className="text-xs font-normal text-text-secondary normal-case tracking-normal">[{habit.measure_unit}]</span>}
-                          
+
                           {/* Display Tags */}
                           {(habit.tags || []).map(t => (
                             <span key={t} className="text-[10px] font-mono bg-accent-4/10 text-accent-4 px-2 py-0.5 rounded-sm normal-case tracking-normal border border-accent-4/20">
                               #{t}
                             </span>
                           ))}
-                        </h2>
+                        </button>
                       </div>
                     )}
                     <p className="text-text-secondary text-xs uppercase tracking-widest mt-2">
@@ -427,6 +424,7 @@ function App() {
                       <button
                         onClick={() => confirmDelete(habit)}
                         className="cursor-pointer bg-red-900/20 hover:bg-red-900/50 text-red-500 px-3 py-1 rounded-sm text-xs font-bold uppercase transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                        aria-label={`Delete habit: ${habit.name}`}
                         title="Delete Habit"
                       >
                         Delete
@@ -435,7 +433,7 @@ function App() {
 
                     {/* Inline Check-in Form */}
                     {activeCheckIn === habit.id && (
-                      <form onSubmit={(e) => submitCheckIn(e, habit.id)} className="flex gap-2 bg-background p-2 rounded-sm border border-white/5 animate-in fade-in slide-in-from-top-2">
+                      <form onSubmit={(e) => submitCheckIn(e, habit.id)} className="flex gap-2 bg-background p-2 rounded-sm border border-white/5 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-2">
                         <input
                           type="date"
                           value={checkInDate}

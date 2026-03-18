@@ -151,14 +151,13 @@ export const HabitGrid: React.FC<HabitGridProps> = ({ completions, measureUnit, 
               width={SQUARE_SIZE}
               height={SQUARE_SIZE}
               rx={2}
-              className={`transition-colors duration-200 cursor-pointer ${colorClass}`}
-              onMouseEnter={() => {
-                setTooltip({
-                  x: x + SQUARE_SIZE / 2,
-                  y: y - 5,
-                  text: tooltipText
-                });
-              }}
+              className={`motion-safe:transition-colors motion-safe:duration-200 cursor-pointer ${colorClass}`}
+              aria-label={tooltipText}
+              role="img"
+              tabIndex={0}
+              onMouseEnter={() => setTooltip({ x: x + SQUARE_SIZE / 2, y: y - 5, text: tooltipText })}
+              onFocus={() => setTooltip({ x: x + SQUARE_SIZE / 2, y: y - 5, text: tooltipText })}
+              onBlur={() => setTooltip(null)}
             />
           );
         })}
