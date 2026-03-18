@@ -1,5 +1,7 @@
 # Commit
 
+<img src="web/public/commit.png" width="300" alt="Commit Logo" />
+
 **Precision Habit Tracking**
 
 Commit is a high-performance, local-first habit tracker designed with a clinical, data-driven aesthetic. It features a developer-friendly terminal interface, quantitative tracking, and dynamic visual analytics.

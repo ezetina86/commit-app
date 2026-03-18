@@ -1,5 +1,10 @@
 # GEMINI.md - Project Specification
 
+## Branching and Workflow
+*   **Workflow Strategy**: All changes MUST follow this flow: `feature/branch-name` -> `dev` -> `main`.
+*   **Main Protection**: The `main` branch MUST be protected. Direct pushes to `main` are strictly prohibited.
+*   **Pull Requests**: Merge requests to `main` should only come from the `dev` branch after full validation in the development environment.
+
 ## System Architecture
 The application is orchestrated via Docker Compose, separating concerns into three primary layers:
 1.  **Proxy/Ingress**: Nginx (optional) or direct port mapping to the frontend.
