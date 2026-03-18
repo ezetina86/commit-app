@@ -15,6 +15,7 @@ type Habit struct {
 	MeasureUnit    string           `json:"measure_unit"`
 	DayStartOffset int              `json:"day_start_offset"` // Minutes from midnight
 	Tags           []string         `json:"tags"`
+	Archived       bool             `json:"archived"`
 	CreatedAt      time.Time        `json:"created_at"`
 	CurrentStreak  int              `json:"current_streak"`
 	Completions    []CompletionData `json:"completions"`

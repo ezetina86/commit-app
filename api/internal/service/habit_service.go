@@ -9,12 +9,13 @@ import (
 
 type HabitRepository interface {
 	CreateHabit(ctx context.Context, name string, measureUnit string, tags []string, offset int) (*models.Habit, error)
-	GetHabits(ctx context.Context) ([]*models.Habit, error)
+	GetHabits(ctx context.Context, includeArchived bool) ([]*models.Habit, error)
 	GetHabitByID(ctx context.Context, id string) (*models.Habit, error)
 	GetCompletionsForHabit(ctx context.Context, habitID string) ([]models.CompletionData, error)
 	AddCompletion(ctx context.Context, habitID, date string, value int) error
 	UpdateHabit(ctx context.Context, id, name string, measureUnit string, tags []string, offset int) error
 	DeleteHabit(ctx context.Context, id string) error
+	ArchiveHabit(ctx context.Context, id string, archived bool) error
 }
 
 type HabitService struct {
@@ -33,7 +34,7 @@ func NewHabitService(repo HabitRepository) *HabitService {
 }
 
 func (s *HabitService) GenerateInsights(ctx context.Context) ([]Insight, error) {
-	habits, err := s.ListHabits(ctx)
+	habits, err := s.ListHabits(ctx, false)
 	if err != nil {
 		return nil, err
 	}
@@ -132,8 +133,12 @@ func (s *HabitService) DeleteHabit(ctx context.Context, id string) error {
 	return s.repo.DeleteHabit(ctx, id)
 }
 
-func (s *HabitService) ListHabits(ctx context.Context) ([]*models.Habit, error) {
-	habits, err := s.repo.GetHabits(ctx)
+func (s *HabitService) ArchiveHabit(ctx context.Context, id string, archived bool) error {
+	return s.repo.ArchiveHabit(ctx, id, archived)
+}
+
+func (s *HabitService) ListHabits(ctx context.Context, includeArchived bool) ([]*models.Habit, error) {
+	habits, err := s.repo.GetHabits(ctx, includeArchived)
 	if err != nil {
 		return nil, err
 	}

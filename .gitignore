@@ -32,3 +32,6 @@ build/
 
 # Test coverage
 web/coverage/
+
+# Playwright MCP browser artifacts
+.playwright-mcp/

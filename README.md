@@ -9,11 +9,14 @@ Commit is a high-performance, local-first habit tracker designed with a clinical
 ## Features
 
 - **GitHub-Style Contribution Graphs**: Visualize your progress over a rolling 52-week grid. Color intensity scales dynamically based on your quantitative check-ins.
-- **Quantitative Tracking**: Track habits with custom units (e.g., "30 pages", "5 miles").
+- **Quantitative Tracking**: Track habits with custom units (e.g., "30 pages", "5 miles"). Check-in values of 0 are allowed.
 - **Retroactive Check-ins**: Log data for previous days if you forget.
-- **Tagging & Filtering**: Organize your habits with custom tags and instantly filter your dashboard.
-- **System Insights**: A built-in "terminal" interface that provides dynamic, conversational analysis of your recent progress.
-- **Daily Quotes**: Pulls motivational quotes via API Ninjas, displayed as a slick terminal banner.
+- **Tagging & Filtering**: Organize habits with custom tags. Filter chips show per-tag habit counts.
+- **Streak Milestone Badges**: Automatic badges at 7, 30, and 100-day streaks.
+- **Summary Row**: At-a-glance totals — active habit count and today's check-in progress.
+- **Archive / Unarchive**: Soft-archive habits you want to pause. Archived habits are hidden by default and dimmed when shown.
+- **System Insights**: A fixed-overlay "terminal" panel that provides dynamic, conversational analysis of your recent 30-day progress.
+- **Daily Quotes**: Pulls motivational quotes via API Ninjas, rotating across 10 categories, displayed as a terminal banner.
 
 ## Tech Stack
 
@@ -58,9 +61,8 @@ graph TD;
    *(You can get a free API key from [API Ninjas](https://api-ninjas.com/api/quotes))*
 
 3. **Run the Application:**
-   Start the services using Docker Compose:
    ```bash
-   docker-compose up --build -d
+   make build
    ```
 
 4. **Access the App:**
@@ -72,26 +74,19 @@ graph TD;
 ## Development
 
 - The **Go backend** is located in `/api`. It exposes endpoints on port `8080` internally.
-- The **React frontend** is located in `/web`. You can run it locally using `npm run dev` (though you must ensure API requests proxy to port `8080`).
+- The **React frontend** is located in `/web`. Run `npm run dev` inside `/web` for a fast local dev server — it proxies `/api` to port `8080`.
 - Database files are stored persistently in the `/data` directory on your host machine.
+
+> All build, test, and container operations should be run via `make`. See [CLAUDE.md](CLAUDE.md) for the full command reference.
 
 ## Testing
 
-Commit maintains a high standard of quality with a minimum **70% test coverage** requirement for both frontend and backend.
+Commit maintains a minimum **70% test coverage** requirement for both frontend and backend.
 
-### Backend (Go)
-Navigate to the `api` directory and use the standard Go toolchain:
 ```bash
-cd api
-go test -cover ./...
-```
-
-### Frontend (React/TypeScript)
-Navigate to the `web` directory and use the Vitest runner:
-```bash
-cd web
-npm run test      # Run all tests once
-npm run coverage  # Run tests and generate coverage report
+make test-all       # Run backend + frontend tests
+make test-backend   # Go tests with coverage (internal/service)
+make test-frontend  # Vitest + React Testing Library with coverage
 ```
 
 ## Design Philosophy
@@ -100,5 +95,9 @@ Commit uses a strict monochromatic, high-contrast color palette:
 - **Background**: `#0B0E14`
 - **Surface**: `#161B22`
 - **Text Primary**: `#E6EDF3`
-- **Accent Greens**: `#0E4429` (low) to `#39D353` (high)
-- **Typography**: JetBrains Mono for a clean, data-driven layout. Emojis are strictly prohibited.
+- **Text Secondary**: `#7D8590`
+- **Accent-1**: `#0E4429` — low-intensity grid cell
+- **Accent-2**: `#006D32` — mid-low / 7-day streak badge
+- **Accent-3**: `#26A641` — mid-high / 30-day streak badge
+- **Accent-4**: `#39D353` — high-intensity / CTA green / 100-day streak badge
+- **Typography**: JetBrains Mono throughout. Emojis are strictly prohibited.

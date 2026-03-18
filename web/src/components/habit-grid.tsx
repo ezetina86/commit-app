@@ -8,6 +8,7 @@ export interface CompletionData {
 interface HabitGridProps {
   completions: CompletionData[];
   measureUnit: string;
+  habitName?: string;
   startDate?: Date;
 }
 
@@ -21,7 +22,7 @@ const LABEL_OFFSET_Y = 20; // Space for Jan, Feb, Mar
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-export const HabitGrid: React.FC<HabitGridProps> = ({ completions, measureUnit, startDate = new Date() }) => {
+export const HabitGrid: React.FC<HabitGridProps> = ({ completions, measureUnit, habitName, startDate = new Date() }) => {
   const [tooltip, setTooltip] = useState<{ x: number, y: number, text: string } | null>(null);
 
   const completionMap = useMemo(() => {
@@ -109,8 +110,11 @@ export const HabitGrid: React.FC<HabitGridProps> = ({ completions, measureUnit, 
         height={gridHeight}
         viewBox={`0 0 ${gridWidth} ${gridHeight}`}
         className="overflow-visible font-sans text-[10px] fill-text-secondary"
+        role="img"
+        aria-label={habitName ? `365-day contribution grid for ${habitName}` : '365-day contribution grid'}
         onMouseLeave={() => setTooltip(null)}
       >
+        <title>{habitName ? `${habitName} — 365-day activity grid` : '365-day activity grid'}</title>
         {/* Month Labels */}
         {monthLabels.map((lbl, i) => (
           <text 
