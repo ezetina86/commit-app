@@ -16,7 +16,7 @@ describe('HabitGrid Component', () => {
   });
 
   it('renders correctly with completions and scales intensity', () => {
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = new Date().toLocaleDateString('en-CA');
     const data = [{ date: todayStr, value: 100 }];
 
     const { container, getByText } = render(<HabitGrid completions={data} measureUnit="pages" />);
@@ -32,7 +32,7 @@ describe('HabitGrid Component', () => {
   });
 
   it('renders check-ins when measure unit is empty', () => {
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = new Date().toLocaleDateString('en-CA');
     const data = [{ date: todayStr, value: 5 }];
 
     const { container, getByText } = render(<HabitGrid completions={data} measureUnit="" />);

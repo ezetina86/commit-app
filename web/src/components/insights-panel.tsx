@@ -20,10 +20,17 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({ insights, onClose 
 
   useEffect(() => {
     if (insights.length > 0) {
-      setDisplayedText(insights.map(() => ''));
-      setCurrentIndex(0);
-      setCharIndex(0);
-      setIsTyping(true);
+      const prefersReduced = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (prefersReduced) {
+        setDisplayedText(insights.map(i => i.message));
+        setCurrentIndex(insights.length);
+        setIsTyping(false);
+      } else {
+        setDisplayedText(insights.map(() => ''));
+        setCurrentIndex(0);
+        setCharIndex(0);
+        setIsTyping(true);
+      }
     }
   }, [insights]);
 
@@ -61,12 +68,13 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({ insights, onClose 
       {/* Terminal Title Bar */}
       <div className="flex items-center justify-between bg-[#161b22] border-b border-white/10 px-4 py-2 relative z-10">
         <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-accent-4 animate-pulse"></div>
+          <div className="w-2 h-2 rounded-full bg-accent-4 motion-safe:animate-pulse"></div>
           <h3 className="text-[10px] uppercase tracking-widest text-text-secondary font-bold">system_insights.sh</h3>
         </div>
-        <button 
+        <button
           onClick={onClose}
           className="text-text-secondary hover:text-text-primary transition-colors cursor-pointer text-xs"
+          aria-label="Close insights panel"
           title="Close terminal"
         >
           [X]
@@ -93,7 +101,7 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({ insights, onClose 
                 })}
                 {/* Cursor effect on the currently typing line */}
                 {i === currentIndex && isTyping && (
-                  <span className="inline-block w-2 h-4 bg-accent-4 ml-1 animate-pulse align-middle"></span>
+                  <span className="inline-block w-2 h-4 bg-accent-4 ml-1 motion-safe:animate-pulse align-middle"></span>
                 )}
               </p>
             </div>
@@ -102,7 +110,7 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({ insights, onClose 
         {currentIndex >= insights.length && (
           <div className="flex gap-4 items-start mt-4 opacity-50">
              <span className="text-accent-3 select-none">{`$`}</span>
-             <span className="inline-block w-2 h-4 bg-accent-4 animate-pulse align-middle"></span>
+             <span className="inline-block w-2 h-4 bg-accent-4 motion-safe:animate-pulse align-middle"></span>
           </div>
         )}
       </div>

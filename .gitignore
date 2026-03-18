@@ -29,3 +29,6 @@ data/habit.db-wal
 dist/
 build/
 .env
+
+# Test coverage
+web/coverage/

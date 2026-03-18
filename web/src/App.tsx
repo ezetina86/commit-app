@@ -30,7 +30,7 @@ function App() {
   
   // State for check-in forms
   const [activeCheckIn, setActiveCheckIn] = useState<string | null>(null);
-  const [checkInDate, setCheckInDate] = useState(new Date().toISOString().split('T')[0]);
+  const [checkInDate, setCheckInDate] = useState(new Intl.DateTimeFormat('en-CA').format(new Date()));
   const [checkInValue, setCheckInValue] = useState<number | ''>(1);
 
   // Custom Confirmation Modal State
@@ -198,7 +198,7 @@ function App() {
       setActiveCheckIn(null);
     } else {
       setActiveCheckIn(habitId);
-      setCheckInDate(new Date().toISOString().split('T')[0]);
+      setCheckInDate(new Intl.DateTimeFormat('en-CA').format(new Date()));
       setCheckInValue(1);
       setEditingId(null);
     }
@@ -249,6 +249,7 @@ function App() {
         <button
           onClick={() => setShowInsights(!showInsights)}
           className={`pointer-events-auto cursor-pointer font-mono text-xs px-3 py-1.5 rounded-sm border transition-colors ${showInsights ? 'bg-accent-4 text-background border-accent-4' : 'bg-surface border-white/10 text-text-secondary hover:text-text-primary hover:border-white/30'}`}
+          aria-label="Toggle insights panel"
           title="Toggle System Insights"
         >
           &gt;_
@@ -265,21 +266,30 @@ function App() {
               value={newHabitName}
               onChange={(e) => setNewHabitName(e.target.value)}
               placeholder="New Habit..."
-              className="flex-1 min-w-[200px] bg-surface border-none text-text-primary px-4 py-2 rounded-sm focus:ring-1 focus:ring-accent-4 outline-none transition-all placeholder:text-text-secondary/50"
+              aria-label="Habit name"
+              name="habit-name"
+              autoComplete="off"
+              className="flex-1 min-w-[200px] bg-surface border-none text-text-primary px-4 py-2 rounded-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none transition-colors placeholder:text-text-secondary/50"
             />
             <input
               type="text"
               value={newHabitTagsStr}
               onChange={(e) => setNewHabitTagsStr(e.target.value)}
               placeholder="Tags (comma separated)"
-              className="flex-1 min-w-[150px] bg-surface border-none text-text-primary px-4 py-2 rounded-sm focus:ring-1 focus:ring-accent-4 outline-none transition-all placeholder:text-text-secondary/50 text-sm font-mono"
+              aria-label="Tags (comma separated)"
+              name="habit-tags"
+              autoComplete="off"
+              className="flex-1 min-w-[150px] bg-surface border-none text-text-primary px-4 py-2 rounded-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none transition-colors placeholder:text-text-secondary/50 text-sm font-mono"
             />
             <input
               type="text"
               value={newHabitUnit}
               onChange={(e) => setNewHabitUnit(e.target.value)}
               placeholder="Unit (e.g. pages)"
-              className="w-32 bg-surface border-none text-text-primary px-4 py-2 rounded-sm focus:ring-1 focus:ring-accent-4 outline-none transition-all placeholder:text-text-secondary/50"
+              aria-label="Measure unit"
+              name="habit-unit"
+              autoComplete="off"
+              className="w-32 bg-surface border-none text-text-primary px-4 py-2 rounded-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none transition-colors placeholder:text-text-secondary/50"
             />
             <button
               type="submit"
@@ -312,8 +322,9 @@ function App() {
           )}
         </div>
 
+        <div aria-live="polite" aria-atomic="false">
         {loading ? (
-          <div className="text-center py-12 text-text-secondary uppercase tracking-widest animate-pulse">
+          <div className="text-center py-12 text-text-secondary uppercase tracking-widest motion-safe:animate-pulse">
             Loading lattice...
           </div>
         ) : (
@@ -332,22 +343,30 @@ function App() {
                           type="text"
                           value={editName}
                           onChange={(e) => setEditName(e.target.value)}
-                          autoFocus
-                          className="flex-1 min-w-[150px] bg-background border-none text-text-primary px-2 py-1 text-xl font-bold uppercase tracking-tight rounded-sm focus:ring-1 focus:ring-accent-4 outline-none"
+                          aria-label="Habit name"
+                          name="edit-name"
+                          autoComplete="off"
+                          className="flex-1 min-w-[150px] bg-background border-none text-text-primary px-2 py-1 text-xl font-bold uppercase tracking-tight rounded-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none"
                         />
                         <input
                           type="text"
                           value={editTagsStr}
                           onChange={(e) => setEditTagsStr(e.target.value)}
                           placeholder="Tags (csv)"
-                          className="flex-1 min-w-[100px] bg-background border-none text-accent-4 px-2 py-1 text-sm font-mono rounded-sm focus:ring-1 focus:ring-accent-4 outline-none"
+                          aria-label="Tags (comma separated)"
+                          name="edit-tags"
+                          autoComplete="off"
+                          className="flex-1 min-w-[100px] bg-background border-none text-accent-4 px-2 py-1 text-sm font-mono rounded-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none"
                         />
                         <input
                           type="text"
                           value={editUnit}
                           onChange={(e) => setEditUnit(e.target.value)}
                           placeholder="Unit"
-                          className="w-20 bg-background border-none text-text-primary px-2 py-1 text-sm rounded-sm focus:ring-1 focus:ring-accent-4 outline-none"
+                          aria-label="Measure unit"
+                          name="edit-unit"
+                          autoComplete="off"
+                          className="w-20 bg-background border-none text-text-primary px-2 py-1 text-sm rounded-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none"
                         />
                         <button
                           type="submit"
@@ -365,21 +384,23 @@ function App() {
                       </form>
                     ) : (
                       <div>
-                        <h2 
-                          className="text-xl font-bold uppercase tracking-tight cursor-pointer hover:text-accent-3 transition-colors flex flex-wrap items-center gap-2"
+                        <button
+                          type="button"
+                          className="text-xl font-bold uppercase tracking-tight cursor-pointer hover:text-accent-3 transition-colors flex flex-wrap items-center gap-2 text-left w-full"
                           onClick={() => startEditing(habit)}
+                          aria-label={`Edit habit: ${habit.name}`}
                           title="Click to edit"
                         >
                           {habit.name}
                           {habit.measure_unit && <span className="text-xs font-normal text-text-secondary normal-case tracking-normal">[{habit.measure_unit}]</span>}
-                          
+
                           {/* Display Tags */}
                           {(habit.tags || []).map(t => (
                             <span key={t} className="text-[10px] font-mono bg-accent-4/10 text-accent-4 px-2 py-0.5 rounded-sm normal-case tracking-normal border border-accent-4/20">
                               #{t}
                             </span>
                           ))}
-                        </h2>
+                        </button>
                       </div>
                     )}
                     <p className="text-text-secondary text-xs uppercase tracking-widest mt-2">
@@ -403,6 +424,7 @@ function App() {
                       <button
                         onClick={() => confirmDelete(habit)}
                         className="cursor-pointer bg-red-900/20 hover:bg-red-900/50 text-red-500 px-3 py-1 rounded-sm text-xs font-bold uppercase transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                        aria-label={`Delete habit: ${habit.name}`}
                         title="Delete Habit"
                       >
                         Delete
@@ -411,21 +433,25 @@ function App() {
 
                     {/* Inline Check-in Form */}
                     {activeCheckIn === habit.id && (
-                      <form onSubmit={(e) => submitCheckIn(e, habit.id)} className="flex gap-2 bg-background p-2 rounded-sm border border-white/5 animate-in fade-in slide-in-from-top-2">
-                        <input 
-                          type="date" 
+                      <form onSubmit={(e) => submitCheckIn(e, habit.id)} className="flex gap-2 bg-background p-2 rounded-sm border border-white/5 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-2">
+                        <input
+                          type="date"
                           value={checkInDate}
                           onChange={(e) => setCheckInDate(e.target.value)}
-                          className="bg-surface text-text-primary text-xs px-2 py-1 rounded-sm border-none outline-none focus:ring-1 focus:ring-accent-4"
+                          aria-label="Check-in date"
+                          name="checkin-date"
+                          className="bg-surface text-text-primary text-xs px-2 py-1 rounded-sm border-none outline-none focus-visible:ring-1 focus-visible:ring-accent-4"
                           required
                         />
-                        <input 
-                          type="number" 
+                        <input
+                          type="number"
                           min="1"
                           value={checkInValue}
                           onChange={(e) => setCheckInValue(e.target.value === '' ? '' : Number(e.target.value))}
                           placeholder={habit.measure_unit || 'Value'}
-                          className="bg-surface text-text-primary text-xs px-2 py-1 rounded-sm border-none outline-none focus:ring-1 focus:ring-accent-4 w-16"
+                          aria-label={`Check-in value${habit.measure_unit ? ` in ${habit.measure_unit}` : ''}`}
+                          name="checkin-value"
+                          className="bg-surface text-text-primary text-xs px-2 py-1 rounded-sm border-none outline-none focus-visible:ring-1 focus-visible:ring-accent-4 w-16"
                           required
                         />
                         <button 
@@ -449,7 +475,8 @@ function App() {
             )}
           </div>
         )}
-        
+        </div>
+
         {/* We place the Insights Panel inside a dedicated container that spans all columns if necessary */}
         {showInsights && (
            <div className="w-full">

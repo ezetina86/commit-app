@@ -42,21 +42,21 @@ export const HabitGrid: React.FC<HabitGridProps> = ({ completions, measureUnit, 
     let currentMonth = -1;
 
     const end = new Date(startDate);
-    end.setUTCHours(0, 0, 0, 0);
-    
+    end.setHours(0, 0, 0, 0);
+
     // Start exactly one year ago from the end date
     const start = new Date(end);
     start.setDate(start.getDate() - 365);
-    
+
     // Adjust start to the previous Sunday to keep columns consistent
-    const dayOfWeek = start.getUTCDay();
+    const dayOfWeek = start.getDay();
     start.setDate(start.getDate() - dayOfWeek);
 
     const current = new Date(start);
     let weekIndex = 0;
 
     while (current <= end) {
-      const dateStr = current.toISOString().split('T')[0];
+      const dateStr = current.toLocaleDateString('en-CA');
       const val = completionMap.get(dateStr) || 0;
       
       // Calculate intensity (0-4)
@@ -151,14 +151,13 @@ export const HabitGrid: React.FC<HabitGridProps> = ({ completions, measureUnit, 
               width={SQUARE_SIZE}
               height={SQUARE_SIZE}
               rx={2}
-              className={`transition-colors duration-200 cursor-pointer ${colorClass}`}
-              onMouseEnter={() => {
-                setTooltip({
-                  x: x + SQUARE_SIZE / 2,
-                  y: y - 5,
-                  text: tooltipText
-                });
-              }}
+              className={`motion-safe:transition-colors motion-safe:duration-200 cursor-pointer ${colorClass}`}
+              aria-label={tooltipText}
+              role="img"
+              tabIndex={0}
+              onMouseEnter={() => setTooltip({ x: x + SQUARE_SIZE / 2, y: y - 5, text: tooltipText })}
+              onFocus={() => setTooltip({ x: x + SQUARE_SIZE / 2, y: y - 5, text: tooltipText })}
+              onBlur={() => setTooltip(null)}
             />
           );
         })}
