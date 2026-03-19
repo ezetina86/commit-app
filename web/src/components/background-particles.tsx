@@ -51,7 +51,7 @@ export const BackgroundParticles = () => {
     },
     "detectRetina": true,
     "duration": 0,
-    "fpsLimit": 120,
+    "fpsLimit": prefersReducedMotion ? 30 : 60,
     "interactivity": {
       "detectsOn": "window",
       "events": {
@@ -299,7 +299,7 @@ export const BackgroundParticles = () => {
         },
         "random": false,
         "size": false,
-        "speed": 3,
+        "speed": 5,
         "spin": {
           "acceleration": 0,
           "enable": false
@@ -307,7 +307,7 @@ export const BackgroundParticles = () => {
         "straight": false,
         "trail": {
           "enable": true,
-          "length": 20,
+          "length": prefersReducedMotion ? 5 : 15,
           "fill": {
             "color": {
               "value": "#0B0E14" // Matched trail fill to app background for better effect
@@ -325,22 +325,22 @@ export const BackgroundParticles = () => {
         },
         "limit": {
           "mode": "delete",
-          "value": 0
+          "value": 8
         },
         "value": 0
       },
       "opacity": {
-        "value": 1,
+        "value": { "min": 0, "max": 1 },
         "animation": {
           "count": 0,
-          "enable": false,
-          "speed": 2,
+          "enable": true,
+          "speed": 1.5,
           "decay": 0,
           "delay": 0,
           "sync": false,
           "mode": "auto",
-          "startValue": "random",
-          "destroy": "none"
+          "startValue": "max",
+          "destroy": "min"
         }
       },
       "reduceDuplicates": false,
@@ -447,13 +447,13 @@ export const BackgroundParticles = () => {
         }
       },
       "life": {
-        "count": 0,
+        "count": 1,
         "delay": {
           "value": 0,
           "sync": false
         },
         "duration": {
-          "value": 0,
+          "value": { "min": 4, "max": 6 },
           "sync": false
         }
       },
@@ -532,7 +532,7 @@ export const BackgroundParticles = () => {
       },
       "rate": {
         "quantity": 1,
-        "delay": 0.25
+        "delay": 2
       },
       "shape": {
         "options": {},
