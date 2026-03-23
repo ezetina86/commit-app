@@ -11,7 +11,8 @@ type HabitRepository interface {
 	CreateHabit(ctx context.Context, name string, measureUnit string, tags []string, offset int) (*models.Habit, error)
 	GetHabits(ctx context.Context, includeArchived bool) ([]*models.Habit, error)
 	GetHabitByID(ctx context.Context, id string) (*models.Habit, error)
-	GetCompletionsForHabit(ctx context.Context, habitID string) ([]models.CompletionData, error)
+	// GetCompletionsByHabitIDs fetches completions for all given IDs in one query.
+	GetCompletionsByHabitIDs(ctx context.Context, habitIDs []string) (map[string][]models.CompletionData, error)
 	AddCompletion(ctx context.Context, habitID, date string, value int) error
 	UpdateHabit(ctx context.Context, id, name string, measureUnit string, tags []string, offset int) error
 	DeleteHabit(ctx context.Context, id string) error
@@ -142,14 +143,27 @@ func (s *HabitService) ListHabits(ctx context.Context, includeArchived bool) ([]
 	if err != nil {
 		return nil, err
 	}
+	if len(habits) == 0 {
+		return habits, nil
+	}
+
+	// Collect all habit IDs and fetch completions in one query (eliminates N+1).
+	ids := make([]string, len(habits))
+	for i, h := range habits {
+		ids[i] = h.ID
+	}
+	completionsMap, err := s.repo.GetCompletionsByHabitIDs(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
 
 	for _, h := range habits {
-		completions, err := s.repo.GetCompletionsForHabit(ctx, h.ID)
-		if err != nil {
-			return nil, err
+		comps := completionsMap[h.ID]
+		if comps == nil {
+			comps = []models.CompletionData{}
 		}
-		h.Completions = completions
-		h.CurrentStreak = s.calculateStreak(completions, h.DayStartOffset)
+		h.Completions = comps
+		h.CurrentStreak = s.calculateStreak(comps, h.DayStartOffset)
 	}
 
 	return habits, nil
@@ -201,7 +215,7 @@ func (s *HabitService) calculateStreak(completions []models.CompletionData, offs
 		curr = yesterdayStr
 	}
 
-	for dateMap[curr] {
+	for curr != "" && dateMap[curr] {
 		streak++
 		curr = s.getPreviousDate(curr)
 	}
@@ -222,6 +236,9 @@ func (s *HabitService) getYesterdayDateWithOffset(offsetMinutes int) string {
 }
 
 func (s *HabitService) getPreviousDate(dateStr string) string {
-	t, _ := time.Parse("2006-01-02", dateStr)
+	t, err := time.Parse("2006-01-02", dateStr)
+	if err != nil {
+		return ""
+	}
 	return t.AddDate(0, 0, -1).Format("2006-01-02")
 }
