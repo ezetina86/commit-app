@@ -89,10 +89,10 @@ func (r *SQLiteRepository) initSchema() error {
 
 func (r *SQLiteRepository) CreateHabit(ctx context.Context, name string, measureUnit string, tags []string, offset int) (*models.Habit, error) {
 	id := uuid.New().String()
-	tagsJSON, _ := json.Marshal(tags)
-	if string(tagsJSON) == "null" {
-		tagsJSON = []byte("[]")
+	if tags == nil {
+		tags = []string{}
 	}
+	tagsJSON, _ := json.Marshal(tags)
 
 	query := `INSERT INTO habits (id, name, measure_unit, tags, day_start_offset) VALUES (?, ?, ?, ?, ?)`
 	_, err := r.db.ExecContext(ctx, query, id, name, measureUnit, string(tagsJSON), offset)
