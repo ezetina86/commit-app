@@ -149,8 +149,18 @@ func (r *SQLiteRepository) ArchiveHabit(ctx context.Context, id string, archived
 	if archived {
 		val = 1
 	}
-	_, err := r.db.ExecContext(ctx, `UPDATE habits SET archived = ? WHERE id = ?`, val, id)
-	return err
+	result, err := r.db.ExecContext(ctx, `UPDATE habits SET archived = ? WHERE id = ?`, val, id)
+	if err != nil {
+		return err
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 func (r *SQLiteRepository) GetHabitByID(ctx context.Context, id string) (*models.Habit, error) {
@@ -231,8 +241,18 @@ func (r *SQLiteRepository) UpdateHabit(ctx context.Context, id, name string, mea
 	}
 
 	query := `UPDATE habits SET name = ?, measure_unit = ?, tags = ?, day_start_offset = ? WHERE id = ?`
-	_, err := r.db.ExecContext(ctx, query, name, measureUnit, string(tagsJSON), offset, id)
-	return err
+	result, err := r.db.ExecContext(ctx, query, name, measureUnit, string(tagsJSON), offset, id)
+	if err != nil {
+		return err
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 func (r *SQLiteRepository) DeleteHabit(ctx context.Context, id string) error {
@@ -246,8 +266,16 @@ func (r *SQLiteRepository) DeleteHabit(ctx context.Context, id string) error {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `DELETE FROM habits WHERE id = ?`, id); err != nil {
+	result, err := tx.ExecContext(ctx, `DELETE FROM habits WHERE id = ?`, id)
+	if err != nil {
 		return err
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return ErrNotFound
 	}
 
 	return tx.Commit()

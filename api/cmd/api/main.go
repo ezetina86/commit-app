@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"log"
 	"math/rand"
@@ -16,9 +17,8 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 )
 
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
+// quoteClient is a package-level client so TCP connections are reused across requests.
+var quoteClient = &http.Client{Timeout: 10 * time.Second}
 
 func main() {
 	dbPath := os.Getenv("DATABASE_PATH")
@@ -55,17 +55,17 @@ func main() {
 				"wisdom", "courage", "perseverance", "focus", "discipline",
 			}
 			category := quoteCategories[rand.Intn(len(quoteCategories))]
-			reqUrl := "https://api.api-ninjas.com/v1/quotes?category=" + category
+			reqURL := "https://api.api-ninjas.com/v1/quotes?category=" + category
 
-			reqAPI, err := http.NewRequest("GET", reqUrl, nil)
+			// Propagate the incoming request context so cancellations are respected.
+			reqAPI, err := http.NewRequestWithContext(r.Context(), http.MethodGet, reqURL, nil)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 			reqAPI.Header.Add("X-Api-Key", apiKey)
 
-			client := &http.Client{Timeout: 10 * time.Second}
-			resp, err := client.Do(reqAPI)
+			resp, err := quoteClient.Do(reqAPI)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -99,7 +99,6 @@ func main() {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
-			// If insights is nil, return an empty array to be friendly to the frontend
 			if insights == nil {
 				insights = []service.Insight{}
 			}
@@ -130,6 +129,10 @@ func main() {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
+			if req.Name == "" {
+				http.Error(w, "name is required", http.StatusBadRequest)
+				return
+			}
 
 			habit, err := habitService.CreateHabit(r.Context(), req.Name, req.MeasureUnit, req.Tags, req.DayStartOffset)
 			if err != nil {
@@ -152,8 +155,16 @@ func main() {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
+			if req.Name == "" {
+				http.Error(w, "name is required", http.StatusBadRequest)
+				return
+			}
 
 			if err := habitService.UpdateHabit(r.Context(), id, req.Name, req.MeasureUnit, req.Tags, req.DayStartOffset); err != nil {
+				if errors.Is(err, repository.ErrNotFound) {
+					http.Error(w, "habit not found", http.StatusNotFound)
+					return
+				}
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
@@ -163,6 +174,10 @@ func main() {
 		r.Delete("/habits/{id}", func(w http.ResponseWriter, r *http.Request) {
 			id := chi.URLParam(r, "id")
 			if err := habitService.DeleteHabit(r.Context(), id); err != nil {
+				if errors.Is(err, repository.ErrNotFound) {
+					http.Error(w, "habit not found", http.StatusNotFound)
+					return
+				}
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
@@ -172,6 +187,10 @@ func main() {
 		r.Patch("/habits/{id}/archive", func(w http.ResponseWriter, r *http.Request) {
 			id := chi.URLParam(r, "id")
 			if err := habitService.ArchiveHabit(r.Context(), id, true); err != nil {
+				if errors.Is(err, repository.ErrNotFound) {
+					http.Error(w, "habit not found", http.StatusNotFound)
+					return
+				}
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
@@ -181,6 +200,10 @@ func main() {
 		r.Patch("/habits/{id}/unarchive", func(w http.ResponseWriter, r *http.Request) {
 			id := chi.URLParam(r, "id")
 			if err := habitService.ArchiveHabit(r.Context(), id, false); err != nil {
+				if errors.Is(err, repository.ErrNotFound) {
+					http.Error(w, "habit not found", http.StatusNotFound)
+					return
+				}
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
@@ -195,6 +218,10 @@ func main() {
 			}
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			if req.HabitID == "" {
+				http.Error(w, "habit_id is required", http.StatusBadRequest)
 				return
 			}
 
