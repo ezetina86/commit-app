@@ -22,8 +22,14 @@ func (m *mockHabitRepository) GetHabits(ctx context.Context, includeArchived boo
 func (m *mockHabitRepository) GetHabitByID(ctx context.Context, id string) (*models.Habit, error) {
 	return nil, nil
 }
-func (m *mockHabitRepository) GetCompletionsForHabit(ctx context.Context, habitID string) ([]models.CompletionData, error) {
-	return m.completions[habitID], nil
+func (m *mockHabitRepository) GetCompletionsByHabitIDs(ctx context.Context, habitIDs []string) (map[string][]models.CompletionData, error) {
+	result := make(map[string][]models.CompletionData, len(habitIDs))
+	for _, id := range habitIDs {
+		if comps, ok := m.completions[id]; ok {
+			result[id] = comps
+		}
+	}
+	return result, nil
 }
 func (m *mockHabitRepository) AddCompletion(ctx context.Context, habitID, date string, value int) error {
 	return nil
