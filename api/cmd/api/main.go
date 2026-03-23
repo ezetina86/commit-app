@@ -9,6 +9,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/ezetina/commit/api/internal/models"
 	"github.com/ezetina/commit/api/internal/repository"
 	"github.com/ezetina/commit/api/internal/service"
 	"github.com/go-chi/chi/v5"
@@ -112,6 +113,9 @@ func main() {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
+			if habits == nil {
+				habits = []*models.Habit{}
+			}
 			json.NewEncoder(w).Encode(habits)
 		})
 
@@ -186,19 +190,20 @@ func main() {
 		r.Post("/check-in", func(w http.ResponseWriter, r *http.Request) {
 			var req struct {
 				HabitID string `json:"habit_id"`
-				Date    string `json:"date"` // Optional
-				Value   int    `json:"value"`
+				Date    string `json:"date"`  // Optional
+				Value   *int   `json:"value"` // Pointer: nil means not provided; 0 is a valid value
 			}
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
 
-			if req.Value == 0 {
-				req.Value = 1 // Default backwards compatibility
+			value := 1 // default when field is absent
+			if req.Value != nil {
+				value = *req.Value
 			}
 
-			if err := habitService.CheckIn(r.Context(), req.HabitID, req.Date, req.Value); err != nil {
+			if err := habitService.CheckIn(r.Context(), req.HabitID, req.Date, value); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}

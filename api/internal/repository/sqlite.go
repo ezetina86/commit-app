@@ -22,6 +22,11 @@ func NewSQLiteRepository(dbPath string) (*SQLiteRepository, error) {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
 
+	// SQLite allows only one concurrent writer; a pool > 1 causes "database is locked" errors.
+	db.SetMaxOpenConns(1)
+	db.SetConnMaxLifetime(0)
+	db.SetConnMaxIdleTime(0)
+
 	repo := &SQLiteRepository{db: db}
 	if err := repo.initSchema(); err != nil {
 		return nil, fmt.Errorf("failed to init schema: %w", err)
@@ -31,6 +36,19 @@ func NewSQLiteRepository(dbPath string) (*SQLiteRepository, error) {
 }
 
 func (r *SQLiteRepository) initSchema() error {
+	// Enable WAL mode for better read concurrency and FK enforcement.
+	// These must be set before DDL runs; with MaxOpenConns(1) the same
+	// connection is always reused so PRAGMAs persist for the process lifetime.
+	pragmas := []string{
+		`PRAGMA journal_mode=WAL`,
+		`PRAGMA foreign_keys=ON`,
+	}
+	for _, p := range pragmas {
+		if _, err := r.db.Exec(p); err != nil {
+			return fmt.Errorf("failed to set pragma %q: %w", p, err)
+		}
+	}
+
 	queries := []string{
 		`CREATE TABLE IF NOT EXISTS habits (
 			id TEXT PRIMARY KEY,
