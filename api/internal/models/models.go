@@ -21,10 +21,3 @@ type Habit struct {
 	Completions    []CompletionData `json:"completions"`
 }
 
-type Completion struct {
-	ID          string    `json:"id"`
-	HabitID     string    `json:"habit_id"`
-	Value       int       `json:"value"`
-	CompletedAt time.Time `json:"completed_at"`
-	Date        string    `json:"date"` // Target date (YYYY-MM-DD)
-}

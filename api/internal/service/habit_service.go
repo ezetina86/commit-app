@@ -215,7 +215,7 @@ func (s *HabitService) calculateStreak(completions []models.CompletionData, offs
 		curr = yesterdayStr
 	}
 
-	for dateMap[curr] {
+	for curr != "" && dateMap[curr] {
 		streak++
 		curr = s.getPreviousDate(curr)
 	}
@@ -236,6 +236,9 @@ func (s *HabitService) getYesterdayDateWithOffset(offsetMinutes int) string {
 }
 
 func (s *HabitService) getPreviousDate(dateStr string) string {
-	t, _ := time.Parse("2006-01-02", dateStr)
+	t, err := time.Parse("2006-01-02", dateStr)
+	if err != nil {
+		return ""
+	}
 	return t.AddDate(0, 0, -1).Format("2006-01-02")
 }

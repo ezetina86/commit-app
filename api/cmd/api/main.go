@@ -102,6 +102,7 @@ func main() {
 			if insights == nil {
 				insights = []service.Insight{}
 			}
+			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(insights)
 		})
 
@@ -115,6 +116,7 @@ func main() {
 			if habits == nil {
 				habits = []*models.Habit{}
 			}
+			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(habits)
 		})
 
@@ -139,6 +141,7 @@ func main() {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
+			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusCreated)
 			json.NewEncoder(w).Encode(habit)
 		})
