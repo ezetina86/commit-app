@@ -4,13 +4,18 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/ezetina/commit/api/internal/models"
 	"github.com/google/uuid"
 	_ "modernc.org/sqlite"
 )
+
+// ErrNotFound is returned when an operation targets a record that does not exist.
+var ErrNotFound = errors.New("record not found")
 
 type SQLiteRepository struct {
 	db *sql.DB
@@ -126,10 +131,15 @@ func (r *SQLiteRepository) GetHabits(ctx context.Context, includeArchived bool) 
 		h.Archived = archived != 0
 
 		var tags []string
-		json.Unmarshal([]byte(tagsStr), &tags)
+		if err := json.Unmarshal([]byte(tagsStr), &tags); err != nil {
+			return nil, fmt.Errorf("failed to parse tags for habit %s: %w", h.ID, err)
+		}
 		h.Tags = tags
 
 		habits = append(habits, h)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 	return habits, nil
 }
@@ -155,36 +165,56 @@ func (r *SQLiteRepository) GetHabitByID(ctx context.Context, id string) (*models
 	h.Archived = archived != 0
 
 	var tags []string
-	json.Unmarshal([]byte(tagsStr), &tags)
+	if err := json.Unmarshal([]byte(tagsStr), &tags); err != nil {
+		return nil, fmt.Errorf("failed to parse tags for habit %s: %w", h.ID, err)
+	}
 	h.Tags = tags
 
 	return h, nil
 }
 
-func (r *SQLiteRepository) GetCompletionsForHabit(ctx context.Context, habitID string) ([]models.CompletionData, error) {
-	// Group by date to support multiple check-ins per day
-	query := `
-		SELECT date, SUM(IFNULL(value, 1)) as total_value 
-		FROM completions 
-		WHERE habit_id = ? 
-		GROUP BY date 
-		ORDER BY date DESC
-	`
-	rows, err := r.db.QueryContext(ctx, query, habitID)
+// GetCompletionsByHabitIDs fetches completions for all given habit IDs in a
+// single query, eliminating the N+1 pattern in ListHabits.
+func (r *SQLiteRepository) GetCompletionsByHabitIDs(ctx context.Context, habitIDs []string) (map[string][]models.CompletionData, error) {
+	result := make(map[string][]models.CompletionData, len(habitIDs))
+	if len(habitIDs) == 0 {
+		return result, nil
+	}
+
+	placeholders := strings.Repeat("?,", len(habitIDs))
+	placeholders = placeholders[:len(placeholders)-1] // trim trailing comma
+
+	query := fmt.Sprintf(`
+		SELECT habit_id, date, SUM(IFNULL(value, 1)) AS total_value
+		FROM completions
+		WHERE habit_id IN (%s)
+		GROUP BY habit_id, date
+		ORDER BY habit_id, date DESC
+	`, placeholders)
+
+	args := make([]any, len(habitIDs))
+	for i, id := range habitIDs {
+		args[i] = id
+	}
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var data []models.CompletionData
 	for rows.Next() {
+		var habitID string
 		var cd models.CompletionData
-		if err := rows.Scan(&cd.Date, &cd.Value); err != nil {
+		if err := rows.Scan(&habitID, &cd.Date, &cd.Value); err != nil {
 			return nil, err
 		}
-		data = append(data, cd)
+		result[habitID] = append(result[habitID], cd)
 	}
-	return data, nil
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 func (r *SQLiteRepository) AddCompletion(ctx context.Context, habitID, date string, value int) error {
