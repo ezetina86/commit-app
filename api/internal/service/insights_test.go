@@ -14,12 +14,20 @@ type mockHabitRepository struct {
 }
 
 func (m *mockHabitRepository) CreateHabit(ctx context.Context, name string, measureUnit string, tags []string, offset int, habitType string) (*models.Habit, error) {
-	return nil, nil
+	if len(m.habits) > 0 {
+		return m.habits[0], nil
+	}
+	return &models.Habit{Name: name, MeasureUnit: measureUnit}, nil
 }
 func (m *mockHabitRepository) GetHabits(ctx context.Context, includeArchived bool) ([]*models.Habit, error) {
 	return m.habits, nil
 }
 func (m *mockHabitRepository) GetHabitByID(ctx context.Context, id string) (*models.Habit, error) {
+	for _, h := range m.habits {
+		if h.ID == id {
+			return h, nil
+		}
+	}
 	return nil, nil
 }
 func (m *mockHabitRepository) GetCompletionsByHabitIDs(ctx context.Context, habitIDs []string) (map[string][]models.CompletionData, error) {
