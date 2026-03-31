@@ -9,6 +9,7 @@ interface Habit {
   id: string;
   name: string;
   measure_unit: string;
+  habit_type: 'quantitative' | 'boolean';
   tags: string[];
   day_start_offset: number;
   current_streak: number;
@@ -22,6 +23,7 @@ function App() {
   const [newHabitName, setNewHabitName] = useState('');
   const [newHabitUnit, setNewHabitUnit] = useState('');
   const [newHabitTagsStr, setNewHabitTagsStr] = useState('');
+  const [newHabitType, setNewHabitType] = useState<'quantitative' | 'boolean'>('quantitative');
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
@@ -100,17 +102,19 @@ function App() {
       const res = await fetch('/api/habits', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          name: newHabitName, 
-          measure_unit: newHabitUnit, 
+        body: JSON.stringify({
+          name: newHabitName,
+          measure_unit: newHabitType === 'boolean' ? '' : newHabitUnit,
           tags,
-          day_start_offset: 0 
+          day_start_offset: 0,
+          habit_type: newHabitType,
         }),
       });
       if (res.ok) {
         setNewHabitName('');
         setNewHabitUnit('');
         setNewHabitTagsStr('');
+        setNewHabitType('quantitative');
         fetchHabitsAndInsights();
       }
     } catch (err) {
@@ -118,7 +122,7 @@ function App() {
     }
   };
 
-  const updateHabit = async (e: React.FormEvent, id: string, currentOffset: number) => {
+  const updateHabit = async (e: React.FormEvent, id: string, currentOffset: number, habitType: 'quantitative' | 'boolean') => {
     e.preventDefault();
     if (!editName.trim()) {
       setEditingId(null);
@@ -131,11 +135,12 @@ function App() {
       const res = await fetch(`/api/habits/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          name: editName, 
-          measure_unit: editUnit, 
+        body: JSON.stringify({
+          name: editName,
+          measure_unit: editUnit,
           tags,
-          day_start_offset: Number(currentOffset) || 0 
+          day_start_offset: Number(currentOffset) || 0,
+          habit_type: habitType,
         }),
       });
       if (res.ok) {
@@ -319,16 +324,36 @@ function App() {
               autoComplete="off"
               className="flex-1 min-w-[150px] bg-surface border-none text-text-primary px-4 py-2 rounded-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none transition-colors placeholder:text-text-secondary/50 text-sm font-mono"
             />
-            <input
-              type="text"
-              value={newHabitUnit}
-              onChange={(e) => setNewHabitUnit(e.target.value)}
-              placeholder="Unit (e.g. pages)"
-              aria-label="Measure unit"
-              name="habit-unit"
-              autoComplete="off"
-              className="w-32 bg-surface border-none text-text-primary px-4 py-2 rounded-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none transition-colors placeholder:text-text-secondary/50"
-            />
+            <div className="flex gap-1">
+              <button
+                type="button"
+                onClick={() => setNewHabitType('quantitative')}
+                aria-pressed={newHabitType === 'quantitative'}
+                className={`px-3 py-2 rounded-sm text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors ${newHabitType === 'quantitative' ? 'bg-accent-4 text-background' : 'bg-surface text-text-secondary hover:text-text-primary'}`}
+              >
+                Quantitative
+              </button>
+              <button
+                type="button"
+                onClick={() => setNewHabitType('boolean')}
+                aria-pressed={newHabitType === 'boolean'}
+                className={`px-3 py-2 rounded-sm text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors ${newHabitType === 'boolean' ? 'bg-accent-4 text-background' : 'bg-surface text-text-secondary hover:text-text-primary'}`}
+              >
+                Yes / No
+              </button>
+            </div>
+            {newHabitType === 'quantitative' && (
+              <input
+                type="text"
+                value={newHabitUnit}
+                onChange={(e) => setNewHabitUnit(e.target.value)}
+                placeholder="Unit (e.g. pages)"
+                aria-label="Measure unit"
+                name="habit-unit"
+                autoComplete="off"
+                className="w-32 bg-surface border-none text-text-primary px-4 py-2 rounded-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none transition-colors placeholder:text-text-secondary/50"
+              />
+            )}
             <button
               type="submit"
               className="bg-accent-4 cursor-pointer text-background px-6 py-2 rounded-sm font-bold uppercase tracking-wider hover:bg-white transition-colors"
@@ -407,8 +432,8 @@ function App() {
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex-1 mr-4">
                     {editingId === habit.id ? (
-                      <form 
-                        onSubmit={(e) => updateHabit(e, habit.id, habit.day_start_offset)} 
+                      <form
+                        onSubmit={(e) => updateHabit(e, habit.id, habit.day_start_offset, habit.habit_type)}
                         className="flex flex-wrap gap-2 mb-1"
                       >
                         <input
@@ -536,18 +561,22 @@ function App() {
                           className="bg-surface text-text-primary text-xs px-2 py-1 rounded-sm border-none outline-none focus-visible:ring-1 focus-visible:ring-accent-4"
                           required
                         />
-                        <input
-                          type="number"
-                          min="0"
-                          value={checkInValue}
-                          onChange={(e) => setCheckInValue(e.target.value === '' ? '' : Number(e.target.value))}
-                          placeholder={habit.measure_unit || 'Value'}
-                          aria-label={`Check-in value${habit.measure_unit ? ` in ${habit.measure_unit}` : ''}`}
-                          name="checkin-value"
-                          className="bg-surface text-text-primary text-xs px-2 py-1 rounded-sm border-none outline-none focus-visible:ring-1 focus-visible:ring-accent-4 w-16"
-                          required
-                        />
-                        <button 
+                        {habit.habit_type === 'boolean' ? (
+                          <span className="text-text-secondary text-xs px-2 py-1">Mark as done</span>
+                        ) : (
+                          <input
+                            type="number"
+                            min="0"
+                            value={checkInValue}
+                            onChange={(e) => setCheckInValue(e.target.value === '' ? '' : Number(e.target.value))}
+                            placeholder={habit.measure_unit || 'Value'}
+                            aria-label={`Check-in value${habit.measure_unit ? ` in ${habit.measure_unit}` : ''}`}
+                            name="checkin-value"
+                            className="bg-surface text-text-primary text-xs px-2 py-1 rounded-sm border-none outline-none focus-visible:ring-1 focus-visible:ring-accent-4 w-16"
+                            required
+                          />
+                        )}
+                        <button
                           type="submit"
                           className="cursor-pointer bg-accent-4 text-background px-3 py-1 rounded-sm text-xs font-bold uppercase hover:bg-white transition-colors"
                         >
@@ -558,7 +587,7 @@ function App() {
                   </div>
 
                 </div>
-                <HabitGrid completions={habit.completions || []} measureUnit={habit.measure_unit} habitName={habit.name} />
+                <HabitGrid completions={habit.completions || []} measureUnit={habit.measure_unit} habitName={habit.name} habitType={habit.habit_type} />
               </article>
             ))}
             {filteredHabits.length === 0 && !loading && (

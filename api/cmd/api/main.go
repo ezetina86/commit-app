@@ -126,6 +126,7 @@ func main() {
 				MeasureUnit    string   `json:"measure_unit"`
 				Tags           []string `json:"tags"`
 				DayStartOffset int      `json:"day_start_offset"`
+				HabitType      string   `json:"habit_type"`
 			}
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
@@ -135,8 +136,11 @@ func main() {
 				http.Error(w, "name is required", http.StatusBadRequest)
 				return
 			}
+			if req.HabitType != "boolean" {
+				req.HabitType = "quantitative"
+			}
 
-			habit, err := habitService.CreateHabit(r.Context(), req.Name, req.MeasureUnit, req.Tags, req.DayStartOffset)
+			habit, err := habitService.CreateHabit(r.Context(), req.Name, req.MeasureUnit, req.Tags, req.DayStartOffset, req.HabitType)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -153,6 +157,7 @@ func main() {
 				MeasureUnit    string   `json:"measure_unit"`
 				Tags           []string `json:"tags"`
 				DayStartOffset int      `json:"day_start_offset"`
+				HabitType      string   `json:"habit_type"`
 			}
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
@@ -162,8 +167,11 @@ func main() {
 				http.Error(w, "name is required", http.StatusBadRequest)
 				return
 			}
+			if req.HabitType != "boolean" {
+				req.HabitType = "quantitative"
+			}
 
-			if err := habitService.UpdateHabit(r.Context(), id, req.Name, req.MeasureUnit, req.Tags, req.DayStartOffset); err != nil {
+			if err := habitService.UpdateHabit(r.Context(), id, req.Name, req.MeasureUnit, req.Tags, req.DayStartOffset, req.HabitType); err != nil {
 				if errors.Is(err, repository.ErrNotFound) {
 					http.Error(w, "habit not found", http.StatusNotFound)
 					return

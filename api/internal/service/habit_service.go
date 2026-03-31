@@ -8,13 +8,13 @@ import (
 )
 
 type HabitRepository interface {
-	CreateHabit(ctx context.Context, name string, measureUnit string, tags []string, offset int) (*models.Habit, error)
+	CreateHabit(ctx context.Context, name string, measureUnit string, tags []string, offset int, habitType string) (*models.Habit, error)
 	GetHabits(ctx context.Context, includeArchived bool) ([]*models.Habit, error)
 	GetHabitByID(ctx context.Context, id string) (*models.Habit, error)
 	// GetCompletionsByHabitIDs fetches completions for all given IDs in one query.
 	GetCompletionsByHabitIDs(ctx context.Context, habitIDs []string) (map[string][]models.CompletionData, error)
 	AddCompletion(ctx context.Context, habitID, date string, value int) error
-	UpdateHabit(ctx context.Context, id, name string, measureUnit string, tags []string, offset int) error
+	UpdateHabit(ctx context.Context, id, name string, measureUnit string, tags []string, offset int, habitType string) error
 	DeleteHabit(ctx context.Context, id string) error
 	ArchiveHabit(ctx context.Context, id string, archived bool) error
 }
@@ -86,9 +86,14 @@ func (s *HabitService) GenerateInsights(ctx context.Context) ([]Insight, error) 
 		if daysCount > 0 {
 			name := names[i%len(names)]
 			phrase := encouragements[i%len(encouragements)]
-			
+
+			count := totalValue
+			if h.HabitType == "boolean" {
+				count = daysCount
+			}
+
 			var message string
-			if h.MeasureUnit != "" {
+			if h.MeasureUnit != "" && h.HabitType != "boolean" {
 				// use unit templates
 				tpl := templatesUnit[i%len(templatesUnit)]
 				switch i % len(templatesUnit) {
@@ -109,11 +114,11 @@ func (s *HabitService) GenerateInsights(ctx context.Context) ([]Insight, error) 
 					message = fmt.Sprintf(tpl, name, h.Name, daysCount, phrase)
 				}
 			}
-			
+
 			insights = append(insights, Insight{
 				HabitID:   h.ID,
 				HabitName: h.Name,
-				Count:     totalValue, // use total value as the primary metric
+				Count:     count,
 				Message:   message,
 			})
 		}
@@ -122,12 +127,12 @@ func (s *HabitService) GenerateInsights(ctx context.Context) ([]Insight, error) 
 	return insights, nil
 }
 
-func (s *HabitService) CreateHabit(ctx context.Context, name string, measureUnit string, tags []string, offset int) (*models.Habit, error) {
-	return s.repo.CreateHabit(ctx, name, measureUnit, tags, offset)
+func (s *HabitService) CreateHabit(ctx context.Context, name string, measureUnit string, tags []string, offset int, habitType string) (*models.Habit, error) {
+	return s.repo.CreateHabit(ctx, name, measureUnit, tags, offset, habitType)
 }
 
-func (s *HabitService) UpdateHabit(ctx context.Context, id, name string, measureUnit string, tags []string, offset int) error {
-	return s.repo.UpdateHabit(ctx, id, name, measureUnit, tags, offset)
+func (s *HabitService) UpdateHabit(ctx context.Context, id, name string, measureUnit string, tags []string, offset int, habitType string) error {
+	return s.repo.UpdateHabit(ctx, id, name, measureUnit, tags, offset, habitType)
 }
 
 func (s *HabitService) DeleteHabit(ctx context.Context, id string) error {

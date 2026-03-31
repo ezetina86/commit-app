@@ -9,6 +9,7 @@ interface HabitGridProps {
   completions: CompletionData[];
   measureUnit: string;
   habitName?: string;
+  habitType?: 'quantitative' | 'boolean';
   startDate?: Date;
 }
 
@@ -22,7 +23,7 @@ const LABEL_OFFSET_Y = 20; // Space for Jan, Feb, Mar
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-export const HabitGrid: React.FC<HabitGridProps> = ({ completions, measureUnit, habitName, startDate = new Date() }) => {
+export const HabitGrid: React.FC<HabitGridProps> = ({ completions, measureUnit, habitName, habitType = 'quantitative', startDate = new Date() }) => {
   const [tooltip, setTooltip] = useState<{ x: number, y: number, text: string } | null>(null);
 
   const completionMap = useMemo(() => {
@@ -143,8 +144,10 @@ export const HabitGrid: React.FC<HabitGridProps> = ({ completions, measureUnit, 
           if (square.intensity === 4) colorClass = 'fill-accent-4';
 
           const unitText = measureUnit ? ` ${measureUnit}` : ' check-ins';
-          const tooltipText = square.value > 0 
-            ? `${square.value}${unitText} on ${square.date}`
+          const tooltipText = square.value > 0
+            ? habitType === 'boolean'
+              ? `Done on ${square.date}`
+              : `${square.value}${unitText} on ${square.date}`
             : `No data on ${square.date}`;
 
           return (
@@ -183,15 +186,24 @@ export const HabitGrid: React.FC<HabitGridProps> = ({ completions, measureUnit, 
 
       <div className="flex justify-between text-[10px] text-text-secondary px-1 uppercase tracking-wider pl-[25px]">
         <span>365 Days</span>
-        <div className="flex gap-1 items-center">
-          <span>Less</span>
-          <div className="w-2 h-2 bg-accent-0 rounded-sm border border-white/5"></div>
-          <div className="w-2 h-2 bg-accent-1 rounded-sm"></div>
-          <div className="w-2 h-2 bg-accent-2 rounded-sm"></div>
-          <div className="w-2 h-2 bg-accent-3 rounded-sm"></div>
-          <div className="w-2 h-2 bg-accent-4 rounded-sm"></div>
-          <span>More</span>
-        </div>
+        {habitType === 'boolean' ? (
+          <div className="flex gap-1 items-center">
+            <span>No data</span>
+            <div className="w-2 h-2 bg-accent-0 rounded-sm border border-white/5"></div>
+            <div className="w-2 h-2 bg-accent-4 rounded-sm"></div>
+            <span>Done</span>
+          </div>
+        ) : (
+          <div className="flex gap-1 items-center">
+            <span>Less</span>
+            <div className="w-2 h-2 bg-accent-0 rounded-sm border border-white/5"></div>
+            <div className="w-2 h-2 bg-accent-1 rounded-sm"></div>
+            <div className="w-2 h-2 bg-accent-2 rounded-sm"></div>
+            <div className="w-2 h-2 bg-accent-3 rounded-sm"></div>
+            <div className="w-2 h-2 bg-accent-4 rounded-sm"></div>
+            <span>More</span>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -29,7 +29,7 @@ func TestCreateAndGetHabit(t *testing.T) {
 	repo := newTestRepo(t)
 	ctx := context.Background()
 
-	habit, err := repo.CreateHabit(ctx, "Exercise", "reps", []string{"health", "fitness"}, 0)
+	habit, err := repo.CreateHabit(ctx, "Exercise", "reps", []string{"health", "fitness"}, 0, "quantitative")
 	if err != nil {
 		t.Fatalf("CreateHabit: %v", err)
 	}
@@ -59,7 +59,7 @@ func TestCreateHabit_NilTags(t *testing.T) {
 	repo := newTestRepo(t)
 	ctx := context.Background()
 
-	habit, err := repo.CreateHabit(ctx, "Meditate", "", nil, 0)
+	habit, err := repo.CreateHabit(ctx, "Meditate", "", nil, 0, "quantitative")
 	if err != nil {
 		t.Fatalf("CreateHabit with nil tags: %v", err)
 	}
@@ -72,7 +72,7 @@ func TestGetHabitByID(t *testing.T) {
 	repo := newTestRepo(t)
 	ctx := context.Background()
 
-	created, err := repo.CreateHabit(ctx, "Read", "pages", []string{"learning"}, 30)
+	created, err := repo.CreateHabit(ctx, "Read", "pages", []string{"learning"}, 30, "quantitative")
 	if err != nil {
 		t.Fatalf("CreateHabit: %v", err)
 	}
@@ -93,8 +93,8 @@ func TestGetCompletionsByHabitIDs_Batch(t *testing.T) {
 	repo := newTestRepo(t)
 	ctx := context.Background()
 
-	h1, _ := repo.CreateHabit(ctx, "Run", "km", nil, 0)
-	h2, _ := repo.CreateHabit(ctx, "Read", "pages", nil, 0)
+	h1, _ := repo.CreateHabit(ctx, "Run", "km", nil, 0, "quantitative")
+	h2, _ := repo.CreateHabit(ctx, "Read", "pages", nil, 0, "quantitative")
 
 	today := time.Now().UTC().Format("2006-01-02")
 	yesterday := time.Now().UTC().AddDate(0, 0, -1).Format("2006-01-02")
@@ -133,7 +133,7 @@ func TestGetCompletionsByHabitIDs_SumsMultipleCheckinsPerDay(t *testing.T) {
 	repo := newTestRepo(t)
 	ctx := context.Background()
 
-	h, _ := repo.CreateHabit(ctx, "Walk", "steps", nil, 0)
+	h, _ := repo.CreateHabit(ctx, "Walk", "steps", nil, 0, "quantitative")
 	today := time.Now().UTC().Format("2006-01-02")
 
 	repo.AddCompletion(ctx, h.ID, today, 3000)
@@ -156,9 +156,9 @@ func TestUpdateHabit(t *testing.T) {
 	repo := newTestRepo(t)
 	ctx := context.Background()
 
-	h, _ := repo.CreateHabit(ctx, "Old", "", nil, 0)
+	h, _ := repo.CreateHabit(ctx, "Old", "", nil, 0, "quantitative")
 
-	if err := repo.UpdateHabit(ctx, h.ID, "New", "reps", []string{"tag"}, 60); err != nil {
+	if err := repo.UpdateHabit(ctx, h.ID, "New", "reps", []string{"tag"}, 60, "quantitative"); err != nil {
 		t.Fatalf("UpdateHabit: %v", err)
 	}
 
@@ -175,7 +175,7 @@ func TestUpdateHabit_NotFound(t *testing.T) {
 	repo := newTestRepo(t)
 	ctx := context.Background()
 
-	err := repo.UpdateHabit(ctx, "non-existent-id", "X", "", nil, 0)
+	err := repo.UpdateHabit(ctx, "non-existent-id", "X", "", nil, 0, "quantitative")
 	if !errors.Is(err, ErrNotFound) {
 		t.Errorf("expected ErrNotFound, got %v", err)
 	}
@@ -185,7 +185,7 @@ func TestDeleteHabit(t *testing.T) {
 	repo := newTestRepo(t)
 	ctx := context.Background()
 
-	h, _ := repo.CreateHabit(ctx, "Temp", "", nil, 0)
+	h, _ := repo.CreateHabit(ctx, "Temp", "", nil, 0, "quantitative")
 	today := time.Now().UTC().Format("2006-01-02")
 	repo.AddCompletion(ctx, h.ID, today, 1)
 
@@ -219,7 +219,7 @@ func TestArchiveHabit(t *testing.T) {
 	repo := newTestRepo(t)
 	ctx := context.Background()
 
-	h, _ := repo.CreateHabit(ctx, "Habit", "", nil, 0)
+	h, _ := repo.CreateHabit(ctx, "Habit", "", nil, 0, "quantitative")
 
 	if err := repo.ArchiveHabit(ctx, h.ID, true); err != nil {
 		t.Fatalf("ArchiveHabit(true): %v", err)
@@ -257,5 +257,69 @@ func TestArchiveHabit_NotFound(t *testing.T) {
 	err := repo.ArchiveHabit(ctx, "non-existent-id", true)
 	if !errors.Is(err, ErrNotFound) {
 		t.Errorf("expected ErrNotFound, got %v", err)
+	}
+}
+
+func TestCreateHabit_Boolean(t *testing.T) {
+	repo := newTestRepo(t)
+	ctx := context.Background()
+
+	habit, err := repo.CreateHabit(ctx, "Medicine", "", nil, 0, "boolean")
+	if err != nil {
+		t.Fatalf("CreateHabit boolean: %v", err)
+	}
+	if habit.HabitType != "boolean" {
+		t.Errorf("expected habit_type 'boolean', got %q", habit.HabitType)
+	}
+
+	habits, err := repo.GetHabits(ctx, false)
+	if err != nil {
+		t.Fatalf("GetHabits: %v", err)
+	}
+	if len(habits) != 1 {
+		t.Fatalf("expected 1 habit, got %d", len(habits))
+	}
+	if habits[0].HabitType != "boolean" {
+		t.Errorf("GetHabits: expected habit_type 'boolean', got %q", habits[0].HabitType)
+	}
+}
+
+func TestCreateHabit_DefaultQuantitative(t *testing.T) {
+	repo := newTestRepo(t)
+	ctx := context.Background()
+
+	habit, err := repo.CreateHabit(ctx, "Read", "pages", nil, 0, "quantitative")
+	if err != nil {
+		t.Fatalf("CreateHabit: %v", err)
+	}
+	if habit.HabitType != "quantitative" {
+		t.Errorf("expected habit_type 'quantitative', got %q", habit.HabitType)
+	}
+
+	fetched, err := repo.GetHabitByID(ctx, habit.ID)
+	if err != nil {
+		t.Fatalf("GetHabitByID: %v", err)
+	}
+	if fetched.HabitType != "quantitative" {
+		t.Errorf("GetHabitByID: expected habit_type 'quantitative', got %q", fetched.HabitType)
+	}
+}
+
+func TestUpdateHabit_Boolean(t *testing.T) {
+	repo := newTestRepo(t)
+	ctx := context.Background()
+
+	h, _ := repo.CreateHabit(ctx, "Sleep", "", nil, 0, "quantitative")
+
+	if err := repo.UpdateHabit(ctx, h.ID, "Sleep", "", nil, 0, "boolean"); err != nil {
+		t.Fatalf("UpdateHabit to boolean: %v", err)
+	}
+
+	fetched, err := repo.GetHabitByID(ctx, h.ID)
+	if err != nil {
+		t.Fatalf("GetHabitByID: %v", err)
+	}
+	if fetched.HabitType != "boolean" {
+		t.Errorf("expected habit_type 'boolean' after update, got %q", fetched.HabitType)
 	}
 }
