@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useReducer, useEffect } from 'react';
 
 export interface Insight {
   habit_id: string;
@@ -12,26 +12,51 @@ interface InsightsPanelProps {
   onClose: () => void;
 }
 
+type AnimState = {
+  displayedText: string[];
+  currentIndex: number;
+  charIndex: number;
+  isTyping: boolean;
+};
+
+type AnimAction =
+  | { type: 'skip'; texts: string[] }
+  | { type: 'start'; count: number }
+  | { type: 'advance_char'; lineIndex: number; text: string }
+  | { type: 'advance_line' };
+
+function animReducer(state: AnimState, action: AnimAction): AnimState {
+  switch (action.type) {
+    case 'skip':
+      return { displayedText: action.texts, currentIndex: action.texts.length, charIndex: 0, isTyping: false };
+    case 'start':
+      return { displayedText: Array(action.count).fill(''), currentIndex: 0, charIndex: 0, isTyping: true };
+    case 'advance_char': {
+      const next = [...state.displayedText];
+      next[action.lineIndex] = action.text;
+      return { ...state, displayedText: next, charIndex: state.charIndex + 1 };
+    }
+    case 'advance_line':
+      return { ...state, currentIndex: state.currentIndex + 1, charIndex: 0 };
+  }
+}
+
 export const InsightsPanel: React.FC<InsightsPanelProps> = ({ insights, onClose }) => {
-  const [displayedText, setDisplayedText] = useState<string[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [charIndex, setCharIndex] = useState(0);
-  const [isTyping, setIsTyping] = useState(false);
+  const [{ displayedText, currentIndex, charIndex, isTyping }, dispatch] = useReducer(animReducer, {
+    displayedText: [],
+    currentIndex: 0,
+    charIndex: 0,
+    isTyping: false,
+  });
 
   useEffect(() => {
-    if (insights.length > 0) {
-      const prefersReduced = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      if (prefersReduced) {
-        setDisplayedText(insights.map(i => i.message));
-        setCurrentIndex(insights.length);
-        setIsTyping(false);
-      } else {
-        setDisplayedText(insights.map(() => ''));
-        setCurrentIndex(0);
-        setCharIndex(0);
-        setIsTyping(true);
-      }
-    }
+    if (insights.length === 0) return;
+    const prefersReduced = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    dispatch(
+      prefersReduced
+        ? { type: 'skip', texts: insights.map(i => i.message) }
+        : { type: 'start', count: insights.length }
+    );
   }, [insights]);
 
   useEffect(() => {
@@ -41,18 +66,12 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({ insights, onClose 
 
     if (charIndex < currentMessage.length) {
       const timeout = setTimeout(() => {
-        setDisplayedText((prev) => {
-          const newText = [...prev];
-          newText[currentIndex] = currentMessage.substring(0, charIndex + 1);
-          return newText;
-        });
-        setCharIndex((prev) => prev + 1);
+        dispatch({ type: 'advance_char', lineIndex: currentIndex, text: currentMessage.substring(0, charIndex + 1) });
       }, 30);
       return () => clearTimeout(timeout);
     } else {
       const timeout = setTimeout(() => {
-        setCurrentIndex((prev) => prev + 1);
-        setCharIndex(0);
+        dispatch({ type: 'advance_line' });
       }, 500);
       return () => clearTimeout(timeout);
     }

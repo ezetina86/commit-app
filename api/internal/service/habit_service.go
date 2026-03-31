@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 	"fmt"
-	"time"
 	"github.com/ezetina/commit/api/internal/models"
+	"time"
 )
 
 type HabitRepository interface {
@@ -44,7 +44,7 @@ func (s *HabitService) GenerateInsights(ctx context.Context) ([]Insight, error) 
 	thirtyDaysAgo := time.Now().UTC().AddDate(0, 0, -30).Format("2006-01-02")
 
 	names := []string{"Enrique", "Henry", "Pal", "Buddy", "Chief", "Mate", "Boss"}
-	
+
 	// Dynamic templates
 	templatesUnit := []string{
 		"Yo %s! You crushed %d %s of '%s' recently! %s",
@@ -195,7 +195,7 @@ func (s *HabitService) calculateStreak(completions []models.CompletionData, offs
 	yesterdayStr := s.getYesterdayDateWithOffset(offset)
 
 	streak := 0
-	
+
 	// Need to check if the last completion was today or yesterday to even start a streak
 	foundLatest := false
 	for _, c := range completions {
@@ -204,7 +204,7 @@ func (s *HabitService) calculateStreak(completions []models.CompletionData, offs
 			break
 		}
 	}
-	
+
 	if !foundLatest {
 		return 0
 	}
@@ -236,7 +236,7 @@ func (s *HabitService) getCurrentDateWithOffset(offsetMinutes int) string {
 
 func (s *HabitService) getYesterdayDateWithOffset(offsetMinutes int) string {
 	now := time.Now().UTC()
-	adjusted := now.Add(time.Duration(-offsetMinutes) * time.Minute).AddDate(0, 0, -1)
+	adjusted := now.Add(time.Duration(-offsetMinutes)*time.Minute).AddDate(0, 0, -1)
 	return adjusted.Format("2006-01-02")
 }
 
