@@ -14,12 +14,20 @@ type mockHabitRepository struct {
 }
 
 func (m *mockHabitRepository) CreateHabit(ctx context.Context, name string, measureUnit string, tags []string, offset int, habitType string) (*models.Habit, error) {
-	return nil, nil
+	if len(m.habits) > 0 {
+		return m.habits[0], nil
+	}
+	return &models.Habit{Name: name, MeasureUnit: measureUnit}, nil
 }
 func (m *mockHabitRepository) GetHabits(ctx context.Context, includeArchived bool) ([]*models.Habit, error) {
 	return m.habits, nil
 }
 func (m *mockHabitRepository) GetHabitByID(ctx context.Context, id string) (*models.Habit, error) {
+	for _, h := range m.habits {
+		if h.ID == id {
+			return h, nil
+		}
+	}
 	return nil, nil
 }
 func (m *mockHabitRepository) GetCompletionsByHabitIDs(ctx context.Context, habitIDs []string) (map[string][]models.CompletionData, error) {
@@ -93,7 +101,7 @@ func TestGenerateInsights(t *testing.T) {
 
 func TestListHabits(t *testing.T) {
 	today := time.Now().UTC().Format("2006-01-02")
-	
+
 	repo := &mockHabitRepository{
 		habits: []*models.Habit{
 			{ID: "1", Name: "Read", MeasureUnit: "pages", DayStartOffset: 0},
@@ -181,7 +189,7 @@ func TestGenerateInsights_Boolean(t *testing.T) {
 		},
 		completions: map[string][]models.CompletionData{
 			"1": {
-				{Date: today, Value: 2},    // two check-ins on same day (summed by repo)
+				{Date: today, Value: 2}, // two check-ins on same day (summed by repo)
 				{Date: yesterday, Value: 1},
 			},
 		},

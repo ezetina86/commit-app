@@ -1,0 +1,169 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - "feature/**"
+      - "fix/**"
+      - "hotfix/**"
+      - "chore/**"
+      - "docs/**"
+      - "refactor/**"
+      - "test/**"
+      - "perf/**"
+      - "ci/**"
+      - dev
+      - main
+  pull_request:
+    branches:
+      - dev
+      - main
+
+# Cancel in-flight runs on the same ref to save runner minutes.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── Job 1: Go backend — lint + test + coverage ──────────────────────────
+  lint-and-test-backend:
+    name: Backend (Go)
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: api/go.mod
+          cache: true
+          cache-dependency-path: api/go.sum
+
+      - name: Check formatting (gofmt)
+        run: |
+          UNFORMATTED=$(gofmt -l .)
+          if [ -n "$UNFORMATTED" ]; then
+            echo "Files need gofmt formatting:"
+            echo "$UNFORMATTED"
+            exit 1
+          fi
+
+      - name: Run go vet
+        run: go vet ./...
+
+      - name: Run tests with race detector and coverage
+        run: |
+          go test -race ./...
+          go test -race -coverprofile=coverage.out -covermode=atomic ./internal/...
+
+      - name: Enforce 70% coverage threshold
+        run: |
+          COVERAGE=$(go tool cover -func=coverage.out \
+            | grep '^total:' \
+            | awk '{print $3}' \
+            | tr -d '%')
+          echo "Total coverage: ${COVERAGE}%"
+          awk -v cov="$COVERAGE" 'BEGIN {
+            if (cov + 0 < 70) {
+              print "FAIL: " cov "% is below the 70% threshold"
+              exit 1
+            }
+            print "PASS: " cov "% meets the 70% threshold"
+          }'
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-coverage
+          path: api/coverage.out
+          retention-days: 14
+
+  # ── Job 2: React frontend — lint + type-check + test + coverage ─────────
+  lint-and-test-frontend:
+    name: Frontend (React)
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: web/.nvmrc
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Type check
+        run: npx tsc --noEmit -p tsconfig.app.json
+
+      - name: Run tests with coverage
+        run: npm run coverage
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frontend-coverage
+          path: web/coverage/
+          retention-days: 14
+
+  # ── Job 3: Docker build + smoke test (dev and main push only) ────────────
+  docker-build:
+    name: Docker Build
+    runs-on: ubuntu-24.04
+    needs: [lint-and-test-backend, lint-and-test-frontend]
+    if: |
+      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main')
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build API image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./api
+          push: false
+          load: true
+          tags: commit-api:ci
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+
+      - name: Build Web image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./web
+          push: false
+          load: true
+          tags: commit-web:ci
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
+
+      - name: Smoke test API container
+        run: |
+          docker run -d \
+            --name api-smoke \
+            -p 8080:8080 \
+            -e DATABASE_PATH=/tmp/test.db \
+            -e PORT=8080 \
+            commit-api:ci
+          for i in $(seq 1 10); do
+            if curl -sf http://localhost:8080/health; then
+              echo "Health check passed"
+              docker stop api-smoke
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "API failed health check"
+          docker logs api-smoke
+          docker stop api-smoke
+          exit 1
