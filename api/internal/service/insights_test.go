@@ -93,7 +93,7 @@ func TestGenerateInsights(t *testing.T) {
 
 func TestListHabits(t *testing.T) {
 	today := time.Now().UTC().Format("2006-01-02")
-	
+
 	repo := &mockHabitRepository{
 		habits: []*models.Habit{
 			{ID: "1", Name: "Read", MeasureUnit: "pages", DayStartOffset: 0},
@@ -181,7 +181,7 @@ func TestGenerateInsights_Boolean(t *testing.T) {
 		},
 		completions: map[string][]models.CompletionData{
 			"1": {
-				{Date: today, Value: 2},    // two check-ins on same day (summed by repo)
+				{Date: today, Value: 2}, // two check-ins on same day (summed by repo)
 				{Date: yesterday, Value: 1},
 			},
 		},

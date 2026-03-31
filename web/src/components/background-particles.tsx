@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import Particles, { initParticlesEngine } from "@tsparticles/react";
-import { type Container, type ISourceOptions } from "@tsparticles/engine";
+import { type ISourceOptions } from "@tsparticles/engine";
 import { loadFull } from "tsparticles"; 
 import { loadPolygonPath } from "@tsparticles/path-polygon";
 
@@ -18,7 +18,7 @@ export const BackgroundParticles = () => {
     });
   }, []);
 
-  const particlesLoaded = async (_container?: Container): Promise<void> => {};
+  const particlesLoaded = async (): Promise<void> => {};
 
   const options: ISourceOptions = {
     "autoPlay": true,

@@ -13,7 +13,7 @@ type Habit struct {
 	ID             string           `json:"id"`
 	Name           string           `json:"name"`
 	MeasureUnit    string           `json:"measure_unit"`
-	HabitType      string           `json:"habit_type"` // 'quantitative' or 'boolean'
+	HabitType      string           `json:"habit_type"`       // 'quantitative' or 'boolean'
 	DayStartOffset int              `json:"day_start_offset"` // Minutes from midnight
 	Tags           []string         `json:"tags"`
 	Archived       bool             `json:"archived"`
@@ -21,4 +21,3 @@ type Habit struct {
 	CurrentStreak  int              `json:"current_streak"`
 	Completions    []CompletionData `json:"completions"`
 }
-

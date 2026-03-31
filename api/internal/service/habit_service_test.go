@@ -1,13 +1,13 @@
 package service
 
 import (
-	"testing"
 	"github.com/ezetina/commit/api/internal/models"
+	"testing"
 )
 
 func TestCalculateStreak(t *testing.T) {
 	s := &HabitService{}
-	
+
 	// Mock dates for today
 	today := s.getCurrentDateWithOffset(0)
 	yesterday := s.getYesterdayDateWithOffset(0)
@@ -69,7 +69,7 @@ func TestCalculateStreak(t *testing.T) {
 			for _, d := range tt.dates {
 				completions = append(completions, models.CompletionData{Date: d, Value: 1})
 			}
-			
+
 			got := s.calculateStreak(completions, tt.offset)
 			if got != tt.expected {
 				t.Errorf("calculateStreak() = %v, want %v", got, tt.expected)
