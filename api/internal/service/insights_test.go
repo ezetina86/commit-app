@@ -13,7 +13,7 @@ type mockHabitRepository struct {
 	completions map[string][]models.CompletionData
 }
 
-func (m *mockHabitRepository) CreateHabit(ctx context.Context, name string, measureUnit string, tags []string, offset int) (*models.Habit, error) {
+func (m *mockHabitRepository) CreateHabit(ctx context.Context, name string, measureUnit string, tags []string, offset int, habitType string) (*models.Habit, error) {
 	return nil, nil
 }
 func (m *mockHabitRepository) GetHabits(ctx context.Context, includeArchived bool) ([]*models.Habit, error) {
@@ -34,7 +34,7 @@ func (m *mockHabitRepository) GetCompletionsByHabitIDs(ctx context.Context, habi
 func (m *mockHabitRepository) AddCompletion(ctx context.Context, habitID, date string, value int) error {
 	return nil
 }
-func (m *mockHabitRepository) UpdateHabit(ctx context.Context, id, name string, measureUnit string, tags []string, offset int) error {
+func (m *mockHabitRepository) UpdateHabit(ctx context.Context, id, name string, measureUnit string, tags []string, offset int, habitType string) error {
 	return nil
 }
 func (m *mockHabitRepository) DeleteHabit(ctx context.Context, id string) error {
@@ -168,5 +168,37 @@ func TestListHabitsWithArchived(t *testing.T) {
 	// mock returns all habits regardless (filtering is done by the repository layer)
 	if len(active) != 2 {
 		t.Errorf("Expected 2 from mock (filtering at repo layer), got %d", len(active))
+	}
+}
+
+func TestGenerateInsights_Boolean(t *testing.T) {
+	today := time.Now().UTC().Format("2006-01-02")
+	yesterday := time.Now().UTC().AddDate(0, 0, -1).Format("2006-01-02")
+
+	repo := &mockHabitRepository{
+		habits: []*models.Habit{
+			{ID: "1", Name: "Medicine", MeasureUnit: "", HabitType: "boolean"},
+		},
+		completions: map[string][]models.CompletionData{
+			"1": {
+				{Date: today, Value: 2},    // two check-ins on same day (summed by repo)
+				{Date: yesterday, Value: 1},
+			},
+		},
+	}
+
+	svc := NewHabitService(repo)
+	insights, err := svc.GenerateInsights(context.Background())
+	if err != nil {
+		t.Fatalf("GenerateInsights failed: %v", err)
+	}
+
+	if len(insights) != 1 {
+		t.Fatalf("Expected 1 insight, got %d", len(insights))
+	}
+
+	// Boolean habits use daysCount (2), not totalValue (3)
+	if insights[0].Count != 2 {
+		t.Errorf("Expected Count 2 (daysCount) for boolean habit, got %d", insights[0].Count)
 	}
 }
