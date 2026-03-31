@@ -7,6 +7,7 @@ const mockHabits = [
     id: '1',
     name: 'Read',
     measure_unit: 'Pages',
+    habit_type: 'quantitative',
     tags: ['personal'],
     day_start_offset: 0,
     current_streak: 3,
@@ -17,6 +18,7 @@ const mockHabits = [
     id: '2',
     name: 'Exercise',
     measure_unit: 'Minutes',
+    habit_type: 'quantitative',
     tags: ['health'],
     day_start_offset: 0,
     current_streak: 7,
@@ -330,5 +332,130 @@ describe('App — Create habit', () => {
     });
 
     await waitFor(() => expect(nameInput).toHaveValue(''));
+  });
+});
+
+describe('App — Boolean habit type toggle', () => {
+  it('shows Quantitative and Yes/No type toggle buttons', async () => {
+    render(<App />);
+    await waitFor(() => expect(screen.getByRole('button', { name: /^add$/i })).toBeInTheDocument());
+
+    expect(screen.getByRole('button', { name: /quantitative/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /yes \/ no/i })).toBeInTheDocument();
+  });
+
+  it('hides unit input when Yes/No is selected', async () => {
+    render(<App />);
+    await waitFor(() => expect(screen.getByRole('button', { name: /^add$/i })).toBeInTheDocument());
+
+    expect(screen.getByLabelText(/measure unit/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /yes \/ no/i }));
+
+    expect(screen.queryByLabelText(/measure unit/i)).not.toBeInTheDocument();
+  });
+
+  it('includes habit_type boolean in POST body when Yes/No is selected', async () => {
+    (fetch as Mock).mockImplementation((url: string, opts?: RequestInit) => {
+      if (opts?.method === 'POST' && url === '/api/habits') return Promise.resolve({ ok: true, json: async () => ({ ...mockHabits[0], id: '99' }) });
+      if (url.includes('/api/quote')) return Promise.resolve({ ok: true, json: async () => ({ quote: 'Q', author: 'A', category: 'success' }) });
+      if (url.includes('/api/habits')) return Promise.resolve({ ok: true, json: async () => mockHabits });
+      if (url.includes('/api/insights')) return Promise.resolve({ ok: true, json: async () => mockInsights });
+      return Promise.resolve({ ok: true, json: async () => ({}) });
+    });
+
+    render(<App />);
+    await waitFor(() => expect(screen.getByRole('button', { name: /^add$/i })).toBeInTheDocument());
+
+    fireEvent.change(screen.getByRole('textbox', { name: /habit name/i }), { target: { value: 'Medicine' } });
+    fireEvent.click(screen.getByRole('button', { name: /yes \/ no/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^add$/i }));
+
+    await waitFor(() => {
+      const calls = (fetch as Mock).mock.calls;
+      const postCall = calls.find((c: unknown[]) => (c[1] as RequestInit)?.method === 'POST' && c[0] === '/api/habits');
+      expect(postCall).toBeTruthy();
+      const body = JSON.parse((postCall![1] as RequestInit).body as string);
+      expect(body.habit_type).toBe('boolean');
+    });
+  });
+
+  it('resets type to quantitative after successful creation', async () => {
+    (fetch as Mock).mockImplementation((url: string, opts?: RequestInit) => {
+      if (opts?.method === 'POST' && url === '/api/habits') return Promise.resolve({ ok: true, json: async () => ({ ...mockHabits[0], id: '99' }) });
+      if (url.includes('/api/quote')) return Promise.resolve({ ok: true, json: async () => ({ quote: 'Q', author: 'A', category: 'success' }) });
+      if (url.includes('/api/habits')) return Promise.resolve({ ok: true, json: async () => mockHabits });
+      if (url.includes('/api/insights')) return Promise.resolve({ ok: true, json: async () => mockInsights });
+      return Promise.resolve({ ok: true, json: async () => ({}) });
+    });
+
+    render(<App />);
+    await waitFor(() => expect(screen.getByRole('button', { name: /^add$/i })).toBeInTheDocument());
+
+    const nameInput = screen.getByRole('textbox', { name: /habit name/i });
+    fireEvent.change(nameInput, { target: { value: 'Medicine' } });
+    fireEvent.click(screen.getByRole('button', { name: /yes \/ no/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^add$/i }));
+
+    await waitFor(() => expect(nameInput).toHaveValue(''));
+
+    expect(screen.getByRole('button', { name: /quantitative/i })).toHaveAttribute('aria-pressed', 'true');
+  });
+});
+
+describe('App — Boolean habit check-in', () => {
+  const mockBooleanHabit = {
+    id: '3',
+    name: 'Medicine',
+    measure_unit: '',
+    habit_type: 'boolean',
+    tags: [],
+    day_start_offset: 0,
+    current_streak: 0,
+    archived: false,
+    completions: [],
+  };
+
+  beforeEach(() => {
+    (fetch as Mock).mockImplementation((url: string) => {
+      if (url.includes('/api/habits')) return Promise.resolve({ ok: true, json: async () => [mockBooleanHabit] });
+      if (url.includes('/api/insights')) return Promise.resolve({ ok: true, json: async () => [] });
+      if (url.includes('/api/quote')) return Promise.resolve({ ok: true, json: async () => ({ quote: 'Q', author: 'A', category: 'success' }) });
+      return Promise.resolve({ ok: true, json: async () => ({}) });
+    });
+  });
+
+  it('shows Mark as done instead of number input for boolean habits', async () => {
+    render(<App />);
+    await waitFor(() => expect(screen.getByLabelText(/track medicine/i)).toBeInTheDocument());
+
+    fireEvent.click(screen.getByLabelText(/track medicine/i));
+
+    expect(screen.getByText(/mark as done/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/check-in value/i)).not.toBeInTheDocument();
+  });
+
+  it('submits value 1 for boolean check-in', async () => {
+    (fetch as Mock).mockImplementation((url: string) => {
+      if (url === '/api/check-in') return Promise.resolve({ ok: true });
+      if (url.includes('/api/habits')) return Promise.resolve({ ok: true, json: async () => [mockBooleanHabit] });
+      if (url.includes('/api/insights')) return Promise.resolve({ ok: true, json: async () => [] });
+      if (url.includes('/api/quote')) return Promise.resolve({ ok: true, json: async () => ({ quote: 'Q', author: 'A', category: 'success' }) });
+      return Promise.resolve({ ok: true, json: async () => ({}) });
+    });
+
+    render(<App />);
+    await waitFor(() => expect(screen.getByLabelText(/track medicine/i)).toBeInTheDocument());
+
+    fireEvent.click(screen.getByLabelText(/track medicine/i));
+    fireEvent.click(screen.getByRole('button', { name: /save/i }));
+
+    await waitFor(() => {
+      const calls = (fetch as Mock).mock.calls;
+      const checkInCall = calls.find((c: unknown[]) => c[0] === '/api/check-in');
+      expect(checkInCall).toBeTruthy();
+      const body = JSON.parse((checkInCall![1] as RequestInit).body as string);
+      expect(body.value).toBe(1);
+    });
   });
 });

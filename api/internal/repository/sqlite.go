@@ -83,19 +83,20 @@ func (r *SQLiteRepository) initSchema() error {
 	r.db.Exec(`ALTER TABLE completions ADD COLUMN value INTEGER DEFAULT 1`)
 	r.db.Exec(`ALTER TABLE habits ADD COLUMN tags TEXT DEFAULT '[]'`)
 	r.db.Exec(`ALTER TABLE habits ADD COLUMN archived INTEGER DEFAULT 0`)
+	r.db.Exec(`ALTER TABLE habits ADD COLUMN habit_type TEXT DEFAULT 'quantitative'`)
 
 	return nil
 }
 
-func (r *SQLiteRepository) CreateHabit(ctx context.Context, name string, measureUnit string, tags []string, offset int) (*models.Habit, error) {
+func (r *SQLiteRepository) CreateHabit(ctx context.Context, name string, measureUnit string, tags []string, offset int, habitType string) (*models.Habit, error) {
 	id := uuid.New().String()
 	if tags == nil {
 		tags = []string{}
 	}
 	tagsJSON, _ := json.Marshal(tags)
 
-	query := `INSERT INTO habits (id, name, measure_unit, tags, day_start_offset) VALUES (?, ?, ?, ?, ?)`
-	_, err := r.db.ExecContext(ctx, query, id, name, measureUnit, string(tagsJSON), offset)
+	query := `INSERT INTO habits (id, name, measure_unit, tags, day_start_offset, habit_type) VALUES (?, ?, ?, ?, ?, ?)`
+	_, err := r.db.ExecContext(ctx, query, id, name, measureUnit, string(tagsJSON), offset, habitType)
 	if err != nil {
 		return nil, err
 	}
@@ -103,6 +104,7 @@ func (r *SQLiteRepository) CreateHabit(ctx context.Context, name string, measure
 		ID:             id,
 		Name:           name,
 		MeasureUnit:    measureUnit,
+		HabitType:      habitType,
 		Tags:           tags,
 		DayStartOffset: offset,
 		CreatedAt:      time.Now(),
@@ -110,7 +112,7 @@ func (r *SQLiteRepository) CreateHabit(ctx context.Context, name string, measure
 }
 
 func (r *SQLiteRepository) GetHabits(ctx context.Context, includeArchived bool) ([]*models.Habit, error) {
-	query := `SELECT id, name, IFNULL(measure_unit, ''), IFNULL(tags, '[]'), day_start_offset, IFNULL(archived, 0), created_at FROM habits`
+	query := `SELECT id, name, IFNULL(measure_unit, ''), IFNULL(tags, '[]'), day_start_offset, IFNULL(archived, 0), created_at, IFNULL(habit_type, 'quantitative') FROM habits`
 	if !includeArchived {
 		query += ` WHERE IFNULL(archived, 0) = 0`
 	}
@@ -125,7 +127,7 @@ func (r *SQLiteRepository) GetHabits(ctx context.Context, includeArchived bool) 
 		h := &models.Habit{}
 		var tagsStr string
 		var archived int
-		if err := rows.Scan(&h.ID, &h.Name, &h.MeasureUnit, &tagsStr, &h.DayStartOffset, &archived, &h.CreatedAt); err != nil {
+		if err := rows.Scan(&h.ID, &h.Name, &h.MeasureUnit, &tagsStr, &h.DayStartOffset, &archived, &h.CreatedAt, &h.HabitType); err != nil {
 			return nil, err
 		}
 		h.Archived = archived != 0
@@ -164,11 +166,11 @@ func (r *SQLiteRepository) ArchiveHabit(ctx context.Context, id string, archived
 }
 
 func (r *SQLiteRepository) GetHabitByID(ctx context.Context, id string) (*models.Habit, error) {
-	query := `SELECT id, name, IFNULL(measure_unit, ''), IFNULL(tags, '[]'), day_start_offset, IFNULL(archived, 0), created_at FROM habits WHERE id = ?`
+	query := `SELECT id, name, IFNULL(measure_unit, ''), IFNULL(tags, '[]'), day_start_offset, IFNULL(archived, 0), created_at, IFNULL(habit_type, 'quantitative') FROM habits WHERE id = ?`
 	h := &models.Habit{}
 	var tagsStr string
 	var archived int
-	err := r.db.QueryRowContext(ctx, query, id).Scan(&h.ID, &h.Name, &h.MeasureUnit, &tagsStr, &h.DayStartOffset, &archived, &h.CreatedAt)
+	err := r.db.QueryRowContext(ctx, query, id).Scan(&h.ID, &h.Name, &h.MeasureUnit, &tagsStr, &h.DayStartOffset, &archived, &h.CreatedAt, &h.HabitType)
 	if err != nil {
 		return nil, err
 	}
@@ -234,14 +236,14 @@ func (r *SQLiteRepository) AddCompletion(ctx context.Context, habitID, date stri
 	return err
 }
 
-func (r *SQLiteRepository) UpdateHabit(ctx context.Context, id, name string, measureUnit string, tags []string, offset int) error {
+func (r *SQLiteRepository) UpdateHabit(ctx context.Context, id, name string, measureUnit string, tags []string, offset int, habitType string) error {
 	tagsJSON, _ := json.Marshal(tags)
 	if string(tagsJSON) == "null" {
 		tagsJSON = []byte("[]")
 	}
 
-	query := `UPDATE habits SET name = ?, measure_unit = ?, tags = ?, day_start_offset = ? WHERE id = ?`
-	result, err := r.db.ExecContext(ctx, query, name, measureUnit, string(tagsJSON), offset, id)
+	query := `UPDATE habits SET name = ?, measure_unit = ?, tags = ?, day_start_offset = ?, habit_type = ? WHERE id = ?`
+	result, err := r.db.ExecContext(ctx, query, name, measureUnit, string(tagsJSON), offset, habitType, id)
 	if err != nil {
 		return err
 	}
