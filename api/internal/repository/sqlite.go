@@ -70,6 +70,14 @@ func (r *SQLiteRepository) initSchema() error {
 		);`,
 		`CREATE INDEX IF NOT EXISTS idx_completions_habit_id ON completions(habit_id);`,
 		`CREATE INDEX IF NOT EXISTS idx_completions_date ON completions(date);`,
+		`CREATE TABLE IF NOT EXISTS blood_pressure_readings (
+			id          TEXT PRIMARY KEY,
+			systolic    INTEGER NOT NULL,
+			diastolic   INTEGER NOT NULL,
+			notes       TEXT DEFAULT '',
+			recorded_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+		);`,
+		`CREATE INDEX IF NOT EXISTS idx_bp_recorded_at ON blood_pressure_readings(recorded_at);`,
 	}
 
 	for _, q := range queries {
@@ -281,6 +289,62 @@ func (r *SQLiteRepository) DeleteHabit(ctx context.Context, id string) error {
 	}
 
 	return tx.Commit()
+}
+
+func (r *SQLiteRepository) CreateBPReading(ctx context.Context, systolic, diastolic int, notes string, recordedAt time.Time) (*models.BloodPressureReading, error) {
+	id := uuid.New().String()
+	query := `INSERT INTO blood_pressure_readings (id, systolic, diastolic, notes, recorded_at) VALUES (?, ?, ?, ?, ?)`
+	_, err := r.db.ExecContext(ctx, query, id, systolic, diastolic, notes, recordedAt.UTC())
+	if err != nil {
+		return nil, err
+	}
+	return &models.BloodPressureReading{
+		ID:         id,
+		Systolic:   systolic,
+		Diastolic:  diastolic,
+		Notes:      notes,
+		RecordedAt: recordedAt,
+	}, nil
+}
+
+func (r *SQLiteRepository) ListBPReadings(ctx context.Context) ([]*models.BloodPressureReading, error) {
+	query := `SELECT id, systolic, diastolic, IFNULL(notes, ''), recorded_at FROM blood_pressure_readings ORDER BY recorded_at DESC`
+	rows, err := r.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var readings []*models.BloodPressureReading
+	for rows.Next() {
+		bp := &models.BloodPressureReading{}
+		if err := rows.Scan(&bp.ID, &bp.Systolic, &bp.Diastolic, &bp.Notes, &bp.RecordedAt); err != nil {
+			return nil, err
+		}
+		readings = append(readings, bp)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if readings == nil {
+		readings = []*models.BloodPressureReading{}
+	}
+	return readings, nil
+}
+
+func (r *SQLiteRepository) DeleteBPReading(ctx context.Context, id string) error {
+	result, err := r.db.ExecContext(ctx, `DELETE FROM blood_pressure_readings WHERE id = ?`, id)
+	if err != nil {
+		return err
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 func (r *SQLiteRepository) Close() error {

@@ -4,6 +4,7 @@ import { BackgroundParticles } from './components/background-particles';
 import { InsightsPanel, type Insight } from './components/insights-panel';
 import { QuoteBanner } from './components/quote-banner';
 import { Toast } from './components/toast';
+import { BloodPressureSection, type BloodPressureReading } from './components/blood-pressure-section';
 
 interface Habit {
   id: string;
@@ -19,6 +20,7 @@ interface Habit {
 
 function App() {
   const [habits, setHabits] = useState<Habit[]>([]);
+  const [bpReadings, setBpReadings] = useState<BloodPressureReading[]>([]);
   const [insights, setInsights] = useState<Insight[]>([]);
   const [newHabitName, setNewHabitName] = useState('');
   const [newHabitUnit, setNewHabitUnit] = useState('');
@@ -54,10 +56,10 @@ function App() {
         fetch(`/api/habits${includeArchived ? '?archived=true' : ''}`),
         fetch('/api/insights')
       ]);
-      
+
       const habitsData = await habitsRes.json();
       const insightsData = await insightsRes.json();
-      
+
       setHabits(habitsData || []);
       setInsights(insightsData || []);
     } catch (err) {
@@ -67,8 +69,19 @@ function App() {
     }
   };
 
+  const fetchBPReadings = async () => {
+    try {
+      const res = await fetch('/api/bp');
+      const data = await res.json();
+      setBpReadings(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('Failed to fetch BP readings:', err);
+    }
+  };
+
   useEffect(() => {
     fetchHabitsAndInsights(showArchived);
+    fetchBPReadings();
   }, [showArchived]);
 
   const allTags = useMemo(() => {
@@ -83,6 +96,21 @@ function App() {
     if (!activeTagFilter) return habits;
     return habits.filter(h => (h.tags || []).includes(activeTagFilter));
   }, [habits, activeTagFilter]);
+
+  const handleAddBP = async (systolic: number, diastolic: number, notes: string) => {
+    await fetch('/api/bp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ systolic, diastolic, notes }),
+    });
+    fetchBPReadings();
+  };
+
+  const handleDeleteBP = (id: string) => {
+    fetch(`/api/bp/${id}`, { method: 'DELETE' }).then(() => fetchBPReadings()).catch((err) => {
+      console.error('Failed to delete BP reading:', err);
+    });
+  };
 
   const parseTags = (str: string) => {
     return str.split(',').map(s => s.trim().toLowerCase()).filter(s => s.length > 0);
@@ -297,7 +325,14 @@ function App() {
       </header>
 
       <main className="w-full flex flex-col gap-8">
-        
+
+        {/* Blood Pressure Section */}
+        <BloodPressureSection
+          readings={bpReadings}
+          onAdd={handleAddBP}
+          onDelete={handleDeleteBP}
+        />
+
         {/* Form and Tag Filter Area */}
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1">

@@ -17,6 +17,9 @@ type HabitRepository interface {
 	UpdateHabit(ctx context.Context, id, name string, measureUnit string, tags []string, offset int, habitType string) error
 	DeleteHabit(ctx context.Context, id string) error
 	ArchiveHabit(ctx context.Context, id string, archived bool) error
+	CreateBPReading(ctx context.Context, systolic, diastolic int, notes string, recordedAt time.Time) (*models.BloodPressureReading, error)
+	ListBPReadings(ctx context.Context) ([]*models.BloodPressureReading, error)
+	DeleteBPReading(ctx context.Context, id string) error
 }
 
 type HabitService struct {
@@ -172,6 +175,18 @@ func (s *HabitService) ListHabits(ctx context.Context, includeArchived bool) ([]
 	}
 
 	return habits, nil
+}
+
+func (s *HabitService) CreateBPReading(ctx context.Context, systolic, diastolic int, notes string, recordedAt time.Time) (*models.BloodPressureReading, error) {
+	return s.repo.CreateBPReading(ctx, systolic, diastolic, notes, recordedAt)
+}
+
+func (s *HabitService) ListBPReadings(ctx context.Context) ([]*models.BloodPressureReading, error) {
+	return s.repo.ListBPReadings(ctx)
+}
+
+func (s *HabitService) DeleteBPReading(ctx context.Context, id string) error {
+	return s.repo.DeleteBPReading(ctx, id)
 }
 
 func (s *HabitService) CheckIn(ctx context.Context, habitID string, dateStr string, value int) error {

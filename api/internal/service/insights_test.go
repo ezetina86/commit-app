@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 type mockHabitRepository struct {
 	habits      []*models.Habit
 	completions map[string][]models.CompletionData
+	bpReadings  []*models.BloodPressureReading
 }
 
 func (m *mockHabitRepository) CreateHabit(ctx context.Context, name string, measureUnit string, tags []string, offset int, habitType string) (*models.Habit, error) {
@@ -50,6 +52,32 @@ func (m *mockHabitRepository) DeleteHabit(ctx context.Context, id string) error 
 }
 func (m *mockHabitRepository) ArchiveHabit(ctx context.Context, id string, archived bool) error {
 	return nil
+}
+func (m *mockHabitRepository) CreateBPReading(ctx context.Context, systolic, diastolic int, notes string, recordedAt time.Time) (*models.BloodPressureReading, error) {
+	bp := &models.BloodPressureReading{
+		ID:         "mock-bp-id",
+		Systolic:   systolic,
+		Diastolic:  diastolic,
+		Notes:      notes,
+		RecordedAt: recordedAt,
+	}
+	m.bpReadings = append(m.bpReadings, bp)
+	return bp, nil
+}
+func (m *mockHabitRepository) ListBPReadings(ctx context.Context) ([]*models.BloodPressureReading, error) {
+	if m.bpReadings == nil {
+		return []*models.BloodPressureReading{}, nil
+	}
+	return m.bpReadings, nil
+}
+func (m *mockHabitRepository) DeleteBPReading(ctx context.Context, id string) error {
+	for i, bp := range m.bpReadings {
+		if bp.ID == id {
+			m.bpReadings = append(m.bpReadings[:i], m.bpReadings[i+1:]...)
+			return nil
+		}
+	}
+	return errors.New("record not found")
 }
 
 func TestGenerateInsights(t *testing.T) {
