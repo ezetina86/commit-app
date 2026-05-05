@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { HabitGrid, type CompletionData } from './components/habit-grid';
 import { BackgroundParticles } from './components/background-particles';
 import { InsightsPanel, type Insight } from './components/insights-panel';
@@ -50,7 +50,7 @@ function App() {
     habitName: '',
   });
 
-  const fetchHabitsAndInsights = async (includeArchived = showArchived) => {
+  const fetchHabitsAndInsights = useCallback(async (includeArchived = showArchived) => {
     try {
       const [habitsRes, insightsRes] = await Promise.all([
         fetch(`/api/habits${includeArchived ? '?archived=true' : ''}`),
@@ -67,9 +67,9 @@ function App() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showArchived]);
 
-  const fetchBPReadings = async () => {
+  const fetchBPReadings = useCallback(async () => {
     try {
       const res = await fetch('/api/bp');
       const data = await res.json();
@@ -77,12 +77,12 @@ function App() {
     } catch (err) {
       console.error('Failed to fetch BP readings:', err);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchHabitsAndInsights(showArchived);
     fetchBPReadings();
-  }, [showArchived]);
+  }, [showArchived, fetchHabitsAndInsights, fetchBPReadings]);
 
   const allTags = useMemo(() => {
     const tags = new Set<string>();
