@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 
 export interface CompletionData {
   date: string;
@@ -16,7 +16,8 @@ interface HabitGridProps {
 const SQUARE_SIZE = 10;
 const GAP = 2;
 const ROWS = 7; // Sunday to Saturday
-const WEEKS = 53; // Full year view
+const MIN_WEEKS = 12; // Always show at least 12 weeks
+const MAX_WEEKS = 53; // Cap at one year
 
 const LABEL_OFFSET_X = 25; // Space for Mon, Wed, Fri
 const LABEL_OFFSET_Y = 20; // Space for Jan, Feb, Mar
@@ -24,6 +25,7 @@ const LABEL_OFFSET_Y = 20; // Space for Jan, Feb, Mar
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 export const HabitGrid: React.FC<HabitGridProps> = ({ completions, measureUnit, habitName, habitType = 'quantitative', startDate = new Date() }) => {
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [tooltip, setTooltip] = useState<{ x: number, y: number, text: string } | null>(null);
 
   const completionMap = useMemo(() => {
@@ -36,9 +38,9 @@ export const HabitGrid: React.FC<HabitGridProps> = ({ completions, measureUnit, 
     if (completions.length === 0) return 0;
     return Math.max(...completions.map(c => c.value));
   }, [completions]);
-  
-  // Calculate squares for the last 365 days
-  const { squares, monthLabels } = useMemo(() => {
+
+  // Calculate squares for the dynamic range (first completion to today, capped at MAX_WEEKS)
+  const { squares, monthLabels, weekCount } = useMemo(() => {
     const items = [];
     const mLabels = [];
     let currentMonth = -1;
@@ -46,9 +48,17 @@ export const HabitGrid: React.FC<HabitGridProps> = ({ completions, measureUnit, 
     const end = new Date(startDate);
     end.setHours(0, 0, 0, 0);
 
-    // Start exactly one year ago from the end date
+    // Find the earliest completion date to avoid months of empty leading space
+    let weeksBack = MIN_WEEKS;
+    if (completions.length > 0) {
+      const earliest = completions.map(c => c.date).sort()[0];
+      const earliestDate = new Date(earliest);
+      const weeksFromEarliest = Math.ceil((end.getTime() - earliestDate.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
+      weeksBack = Math.max(MIN_WEEKS, Math.min(weeksFromEarliest, MAX_WEEKS));
+    }
+
     const start = new Date(end);
-    start.setDate(start.getDate() - 365);
+    start.setDate(start.getDate() - weeksBack * 7);
 
     // Adjust start to the previous Sunday to keep columns consistent
     const dayOfWeek = start.getDay();
@@ -60,7 +70,7 @@ export const HabitGrid: React.FC<HabitGridProps> = ({ completions, measureUnit, 
     while (current <= end) {
       const dateStr = current.toLocaleDateString('en-CA');
       const val = completionMap.get(dateStr) || 0;
-      
+
       // Calculate intensity (0-4)
       let intensity = 0;
       if (val > 0) {
@@ -83,11 +93,10 @@ export const HabitGrid: React.FC<HabitGridProps> = ({ completions, measureUnit, 
         weekIndex,
       });
 
-      // Check if we entered a new month (usually on Sunday or if it's the first week we see it)
+      // Track month label changes on Sunday columns
       if (current.getUTCDay() === 0) {
         const m = current.getUTCMonth();
         if (m !== currentMonth) {
-          // Only push if it's not the very first column, or if it is, maybe skip or align
           mLabels.push({ text: MONTH_NAMES[m], weekIndex });
           currentMonth = m;
         }
@@ -98,29 +107,36 @@ export const HabitGrid: React.FC<HabitGridProps> = ({ completions, measureUnit, 
       }
       current.setDate(current.getDate() + 1);
     }
-    return { squares: items, monthLabels: mLabels };
-  }, [startDate, completionMap, maxVal]);
+    return { squares: items, monthLabels: mLabels, weekCount: weekIndex + 1 };
+  }, [startDate, completions, completionMap, maxVal]);
 
-  const gridWidth = WEEKS * (SQUARE_SIZE + GAP) + LABEL_OFFSET_X;
+  // Auto-scroll to the right so today is always visible
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollLeft = scrollRef.current.scrollWidth;
+    }
+  }, [weekCount]);
+
+  const gridWidth = weekCount * (SQUARE_SIZE + GAP) + LABEL_OFFSET_X;
   const gridHeight = ROWS * (SQUARE_SIZE + GAP) + LABEL_OFFSET_Y;
 
   return (
-    <div className="flex flex-col gap-2 overflow-x-auto py-4 scrollbar-hide text-text-primary relative">
+    <div ref={scrollRef} className="flex flex-col gap-2 overflow-x-auto py-4 text-text-primary relative">
       <svg
         width={gridWidth}
         height={gridHeight}
         viewBox={`0 0 ${gridWidth} ${gridHeight}`}
         className="overflow-visible font-sans text-[10px] fill-text-secondary"
         role="img"
-        aria-label={habitName ? `365-day contribution grid for ${habitName}` : '365-day contribution grid'}
+        aria-label={habitName ? `Activity grid for ${habitName}` : 'Activity grid'}
         onMouseLeave={() => setTooltip(null)}
       >
-        <title>{habitName ? `${habitName} — 365-day activity grid` : '365-day activity grid'}</title>
+        <title>{habitName ? `${habitName} — activity grid` : 'Activity grid'}</title>
         {/* Month Labels */}
         {monthLabels.map((lbl, i) => (
-          <text 
-            key={i} 
-            x={LABEL_OFFSET_X + lbl.weekIndex * (SQUARE_SIZE + GAP)} 
+          <text
+            key={i}
+            x={LABEL_OFFSET_X + lbl.weekIndex * (SQUARE_SIZE + GAP)}
             y={10}
           >
             {lbl.text}
@@ -136,7 +152,7 @@ export const HabitGrid: React.FC<HabitGridProps> = ({ completions, measureUnit, 
         {squares.map((square) => {
           const x = LABEL_OFFSET_X + square.weekIndex * (SQUARE_SIZE + GAP);
           const y = LABEL_OFFSET_Y + square.dayOfWeek * (SQUARE_SIZE + GAP);
-          
+
           let colorClass = 'fill-accent-0 hover:fill-accent-1/50';
           if (square.intensity === 1) colorClass = 'fill-accent-1';
           if (square.intensity === 2) colorClass = 'fill-accent-2';
@@ -169,13 +185,13 @@ export const HabitGrid: React.FC<HabitGridProps> = ({ completions, measureUnit, 
           );
         })}
       </svg>
-      
+
       {/* Custom Tooltip */}
       {tooltip && (
-        <div 
+        <div
           className="absolute z-50 bg-surface border border-white/20 text-text-primary text-[10px] font-bold px-2 py-1 rounded-sm shadow-xl pointer-events-none whitespace-nowrap"
-          style={{ 
-            left: tooltip.x, 
+          style={{
+            left: tooltip.x,
             top: tooltip.y,
             transform: 'translate(-50%, -100%)'
           }}
@@ -185,7 +201,7 @@ export const HabitGrid: React.FC<HabitGridProps> = ({ completions, measureUnit, 
       )}
 
       <div className="flex justify-between text-[10px] text-text-secondary px-1 uppercase tracking-wider pl-[25px]">
-        <span>365 Days</span>
+        <span>{weekCount} Weeks</span>
         {habitType === 'boolean' ? (
           <div className="flex gap-1 items-center">
             <span>No data</span>
