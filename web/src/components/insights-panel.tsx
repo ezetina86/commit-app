@@ -80,12 +80,12 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({ insights, onClose 
   if (insights.length === 0) return null;
 
   return (
-    <div className="w-full bg-[#0d1117] border border-white/10 rounded-sm shadow-2xl font-mono relative overflow-hidden group flex flex-col">
+    <div className="w-full bg-background border border-white/10 rounded-sm shadow-2xl font-mono relative overflow-hidden group flex flex-col">
       {/* Decorative background scanline effect */}
       <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_4px,3px_100%] opacity-20 pointer-events-none"></div>
       
       {/* Terminal Title Bar */}
-      <div className="flex items-center justify-between bg-[#161b22] border-b border-white/10 px-4 py-2 relative z-10">
+      <div className="flex items-center justify-between bg-surface border-b border-white/10 px-4 py-2 relative z-10">
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-accent-4 motion-safe:animate-pulse"></div>
           <h3 className="text-[10px] uppercase tracking-widest text-text-secondary font-bold">system_insights.sh</h3>

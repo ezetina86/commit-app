@@ -3,39 +3,44 @@ name: CI
 on:
   push:
     branches:
-      - "feature/**"
-      - "fix/**"
-      - "hotfix/**"
-      - "chore/**"
-      - "docs/**"
-      - "refactor/**"
-      - "test/**"
-      - "perf/**"
-      - "ci/**"
       - dev
       - main
   pull_request:
     branches:
       - dev
       - main
+  workflow_dispatch: {}
 
 # Cancel in-flight runs on the same ref to save runner minutes.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Default to read-only; individual jobs elevate only what they need.
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
 jobs:
   # ── Job 1: Go backend — lint + test + coverage ──────────────────────────
   lint-and-test-backend:
     name: Backend (Go)
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
     defaults:
       run:
         working-directory: api
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - uses: actions/setup-go@v5
+      - name: Set up Go
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
         with:
           go-version-file: api/go.mod
           cache: true
@@ -43,6 +48,7 @@ jobs:
 
       - name: Check formatting (gofmt)
         run: |
+          set -euo pipefail
           UNFORMATTED=$(gofmt -l .)
           if [ -n "$UNFORMATTED" ]; then
             echo "Files need gofmt formatting:"
@@ -51,15 +57,19 @@ jobs:
           fi
 
       - name: Run go vet
-        run: go vet ./...
+        run: |
+          set -euo pipefail
+          go vet ./...
 
       - name: Run tests with race detector and coverage
         run: |
+          set -euo pipefail
           go test -race ./...
           go test -race -coverprofile=coverage.out -covermode=atomic ./internal/...
 
       - name: Enforce 70% coverage threshold
         run: |
+          set -euo pipefail
           COVERAGE=$(go tool cover -func=coverage.out \
             | grep '^total:' \
             | awk '{print $3}' \
@@ -73,7 +83,8 @@ jobs:
             print "PASS: " cov "% meets the 70% threshold"
           }'
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload backend coverage report
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
           name: backend-coverage
@@ -84,30 +95,69 @@ jobs:
   lint-and-test-frontend:
     name: Frontend (React)
     runs-on: ubuntu-24.04
-    defaults:
-      run:
-        working-directory: web
+    timeout-minutes: 15
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - uses: actions/setup-node@v4
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version-file: web/.nvmrc
           cache: npm
           cache-dependency-path: web/package-lock.json
 
-      - run: npm ci
+      - name: Install dependencies
+        working-directory: web
+        run: |
+          set -euo pipefail
+          npm ci
 
-      - name: Run ESLint
-        run: npm run lint
+      - name: Run linting and type-check
+        run: make lint-frontend
 
       - name: Type check
-        run: npx tsc --noEmit -p tsconfig.app.json
+        working-directory: web
+        run: |
+          set -euo pipefail
+          npx tsc --noEmit -p tsconfig.app.json
 
       - name: Run tests with coverage
-        run: npm run coverage
+        run: make test-frontend
 
-      - uses: actions/upload-artifact@v4
+      - name: Enforce 70% coverage threshold
+        working-directory: web
+        run: |
+          set -euo pipefail
+          SUMMARY_FILE="coverage/coverage-summary.json"
+          if [ ! -f "$SUMMARY_FILE" ]; then
+            echo "Coverage summary not found at $SUMMARY_FILE — cannot enforce threshold"
+            exit 1
+          fi
+          LINES=$(python3 -c "
+          import json, sys
+          data = json.load(open('$SUMMARY_FILE'))
+          total = data.get('total', {})
+          lines = total.get('lines', {}).get('pct', 0)
+          stmts = total.get('statements', {}).get('pct', 0)
+          print(f'{lines:.2f} {stmts:.2f}')
+          ")
+          LINE_PCT=$(echo "$LINES" | awk '{print $1}')
+          STMT_PCT=$(echo "$LINES" | awk '{print $2}')
+          echo "Line coverage:      ${LINE_PCT}%"
+          echo "Statement coverage: ${STMT_PCT}%"
+          awk -v pct="$LINE_PCT" 'BEGIN {
+            if (pct + 0 < 70) {
+              print "FAIL: line coverage " pct "% is below the 70% threshold"
+              exit 1
+            }
+            print "PASS: line coverage " pct "% meets the 70% threshold"
+          }'
+
+      - name: Upload frontend coverage report
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
           name: frontend-coverage
@@ -118,17 +168,22 @@ jobs:
   docker-build:
     name: Docker Build
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     needs: [lint-and-test-backend, lint-and-test-frontend]
+    permissions:
+      contents: read
     if: |
       github.event_name == 'push' &&
       (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main')
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - uses: docker/setup-buildx-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
 
       - name: Build API image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: ./api
           push: false
@@ -138,7 +193,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=api
 
       - name: Build Web image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: ./web
           push: false
@@ -149,6 +204,7 @@ jobs:
 
       - name: Smoke test API container
         run: |
+          set -euo pipefail
           docker run -d \
             --name api-smoke \
             -p 8080:8080 \
@@ -167,3 +223,52 @@ jobs:
           docker logs api-smoke
           docker stop api-smoke
           exit 1
+
+  # ── Job 4: Publish multi-arch images to Docker Hub (main push only) ──────
+  publish:
+    name: Publish to Docker Hub
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    needs: [lint-and-test-backend, lint-and-test-frontend]
+    permissions:
+      contents: read
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up QEMU (ARM64 emulation)
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3.7.0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push API image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
+          context: ./api
+          platforms: linux/arm64,linux/amd64
+          push: true
+          tags: |
+            ezetina86/commit:api-latest
+            ezetina86/commit:api-${{ github.sha }}
+          cache-from: type=gha,scope=api-publish
+          cache-to: type=gha,mode=max,scope=api-publish
+
+      - name: Build and push Web image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
+          context: ./web
+          platforms: linux/arm64,linux/amd64
+          push: true
+          tags: |
+            ezetina86/commit:web-latest
+            ezetina86/commit:web-${{ github.sha }}
+          cache-from: type=gha,scope=web-publish
+          cache-to: type=gha,mode=max,scope=web-publish

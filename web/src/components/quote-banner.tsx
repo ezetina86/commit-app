@@ -54,7 +54,7 @@ export const QuoteBanner = () => {
           <span className="text-accent-4 font-bold">root@commit-sys:~#</span>
           <span className="text-text-primary font-bold">./quote.sh --category {quoteData.category}</span>
         </div>
-        <div className="text-text-primary italic border-l-[3px] border-accent-3 pl-4 py-1 sm:before:content-['>'] sm:before:mr-3 sm:before:text-accent-3 text-lg leading-relaxed tracking-wide">
+        <div className="text-text-primary italic pl-4 py-1 before:content-['>'] before:mr-3 before:text-accent-3 before:font-bold text-lg leading-relaxed tracking-wide">
           {'\u201C'}{safeQuote}{'\u201D'}
           <span className="text-accent-4 flex items-center mt-2 not-italic font-bold text-base tracking-normal">
             <span className="w-4 h-[2px] bg-accent-4 mr-2 inline-block"></span>

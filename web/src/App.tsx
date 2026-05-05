@@ -483,7 +483,7 @@ function App() {
                       <div>
                         <button
                           type="button"
-                          className="text-xl font-bold uppercase tracking-tight cursor-pointer hover:text-accent-3 transition-colors flex flex-wrap items-center gap-2 text-left w-full"
+                          className="text-xl font-bold uppercase tracking-tight cursor-pointer hover:text-accent-3 transition-colors flex flex-wrap items-center gap-2 text-left w-full focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent-4 rounded-sm"
                           id={`habit-title-${habit.id}`}
                           onClick={() => startEditing(habit)}
                           aria-label={`Edit habit: ${habit.name}`}
@@ -533,7 +533,7 @@ function App() {
                       </button>
                       <button
                         onClick={() => archiveHabit(habit.id, !habit.archived)}
-                        className="cursor-pointer bg-surface hover:bg-white/10 text-text-secondary px-3 py-1 rounded-sm text-xs font-bold uppercase transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                        className="cursor-pointer bg-surface hover:bg-white/10 text-text-secondary px-3 py-1 rounded-sm text-xs font-bold uppercase transition-[opacity,background-color] duration-150 opacity-0 group-hover:opacity-100 focus:opacity-100"
                         aria-label={habit.archived ? `Unarchive habit: ${habit.name}` : `Archive habit: ${habit.name}`}
                         title={habit.archived ? 'Unarchive' : 'Archive'}
                       >
@@ -541,7 +541,7 @@ function App() {
                       </button>
                       <button
                         onClick={() => confirmDelete(habit)}
-                        className="cursor-pointer bg-red-900/20 hover:bg-red-900/50 text-red-500 px-3 py-1 rounded-sm text-xs font-bold uppercase transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                        className="cursor-pointer bg-red-900/20 hover:bg-red-900/50 text-red-500 px-3 py-1 rounded-sm text-xs font-bold uppercase transition-[opacity,background-color] duration-150 opacity-0 group-hover:opacity-100 focus:opacity-100"
                         aria-label={`Delete habit: ${habit.name}`}
                         title="Delete Habit"
                       >
@@ -591,7 +591,7 @@ function App() {
               </article>
             ))}
             {filteredHabits.length === 0 && !loading && (
-              <div className="text-center py-24 border-2 border-dashed border-white/5 rounded-sm col-span-full">
+              <div className="text-center py-24 border-2 border-dashed border-white/10 rounded-sm col-span-full">
                 <p className="text-text-secondary uppercase tracking-widest text-sm">No Habits Found</p>
               </div>
             )}
