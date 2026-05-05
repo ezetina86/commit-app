@@ -4,12 +4,13 @@
 CONTAINER_CMD := $(shell command -v podman 2> /dev/null || command -v docker 2> /dev/null || echo docker)
 COMPOSE_CMD := $(shell command -v podman-compose 2> /dev/null || command -v docker-compose 2> /dev/null || echo "docker compose")
 
-.PHONY: build clean prune test test-frontend test-backend test-all lint lint-backend lint-frontend help
+.PHONY: build pull clean prune test test-frontend test-backend test-all lint lint-backend lint-frontend help
 
 # Default target
 help:
 	@echo "Commit Habit Tracker Management Commands (using $(CONTAINER_CMD) and $(COMPOSE_CMD)):"
 	@echo "  make build          Clean, prune, and build container images"
+	@echo "  make pull           Pull latest images from Docker Hub and start containers"
 	@echo "  make clean          Stop and remove containers"
 	@echo "  make prune          Remove unused container data (volumes, networks, images)"
 	@echo "  make test-frontend  Run frontend tests with coverage"
@@ -21,6 +22,11 @@ help:
 
 build: clean prune
 	$(COMPOSE_CMD) up --build -d
+
+pull:
+	$(CONTAINER_CMD) pull ezetina86/commit:api-latest
+	$(CONTAINER_CMD) pull ezetina86/commit:web-latest
+	$(COMPOSE_CMD) up -d
 
 clean:
 	$(COMPOSE_CMD) down --remove-orphans
