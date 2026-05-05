@@ -9,6 +9,14 @@ type CompletionData struct {
 	Value int    `json:"value"`
 }
 
+type BloodPressureReading struct {
+	ID         string    `json:"id"`
+	Systolic   int       `json:"systolic"`
+	Diastolic  int       `json:"diastolic"`
+	Notes      string    `json:"notes"`
+	RecordedAt time.Time `json:"recorded_at"`
+}
+
 type Habit struct {
 	ID             string           `json:"id"`
 	Name           string           `json:"name"`

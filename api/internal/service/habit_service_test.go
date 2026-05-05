@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/ezetina/commit/api/internal/models"
 )
@@ -131,5 +132,75 @@ func TestCheckIn_WithoutDate(t *testing.T) {
 	// Empty dateStr — service should look up the habit's offset and derive the date.
 	if err := svc.CheckIn(context.Background(), "1", "", 1); err != nil {
 		t.Fatalf("CheckIn without date failed: %v", err)
+	}
+}
+
+func TestCreateBPReading(t *testing.T) {
+	repo := &mockHabitRepository{}
+	svc := NewHabitService(repo)
+
+	now := time.Now().UTC()
+	bp, err := svc.CreateBPReading(context.Background(), 120, 80, "after exercise", now)
+	if err != nil {
+		t.Fatalf("CreateBPReading failed: %v", err)
+	}
+	if bp == nil {
+		t.Fatal("CreateBPReading returned nil")
+	}
+	if bp.Systolic != 120 {
+		t.Errorf("expected systolic 120, got %d", bp.Systolic)
+	}
+	if bp.Diastolic != 80 {
+		t.Errorf("expected diastolic 80, got %d", bp.Diastolic)
+	}
+	if bp.Notes != "after exercise" {
+		t.Errorf("expected notes 'after exercise', got %q", bp.Notes)
+	}
+}
+
+func TestListBPReadings(t *testing.T) {
+	now := time.Now().UTC()
+	repo := &mockHabitRepository{
+		bpReadings: []*models.BloodPressureReading{
+			{ID: "1", Systolic: 120, Diastolic: 80, Notes: "", RecordedAt: now},
+			{ID: "2", Systolic: 130, Diastolic: 85, Notes: "stressed", RecordedAt: now.Add(-time.Hour)},
+		},
+	}
+	svc := NewHabitService(repo)
+
+	readings, err := svc.ListBPReadings(context.Background())
+	if err != nil {
+		t.Fatalf("ListBPReadings failed: %v", err)
+	}
+	if len(readings) != 2 {
+		t.Errorf("expected 2 readings, got %d", len(readings))
+	}
+}
+
+func TestDeleteBPReading_Exists(t *testing.T) {
+	now := time.Now().UTC()
+	repo := &mockHabitRepository{
+		bpReadings: []*models.BloodPressureReading{
+			{ID: "bp-1", Systolic: 120, Diastolic: 80, RecordedAt: now},
+		},
+	}
+	svc := NewHabitService(repo)
+
+	if err := svc.DeleteBPReading(context.Background(), "bp-1"); err != nil {
+		t.Fatalf("DeleteBPReading failed: %v", err)
+	}
+	readings, _ := svc.ListBPReadings(context.Background())
+	if len(readings) != 0 {
+		t.Errorf("expected 0 readings after delete, got %d", len(readings))
+	}
+}
+
+func TestDeleteBPReading_NotFound(t *testing.T) {
+	repo := &mockHabitRepository{}
+	svc := NewHabitService(repo)
+
+	err := svc.DeleteBPReading(context.Background(), "nonexistent")
+	if err == nil {
+		t.Fatal("expected error for missing reading, got nil")
 	}
 }

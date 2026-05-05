@@ -221,6 +221,65 @@ func main() {
 			w.WriteHeader(http.StatusNoContent)
 		})
 
+		r.Post("/bp", func(w http.ResponseWriter, r *http.Request) {
+			var req struct {
+				Systolic   int    `json:"systolic"`
+				Diastolic  int    `json:"diastolic"`
+				Notes      string `json:"notes"`
+				RecordedAt string `json:"recorded_at"` // optional ISO datetime
+			}
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			if req.Systolic <= 0 || req.Diastolic <= 0 {
+				http.Error(w, "systolic and diastolic must be greater than 0", http.StatusBadRequest)
+				return
+			}
+
+			recordedAt := time.Now().UTC()
+			if req.RecordedAt != "" {
+				parsed, err := time.Parse(time.RFC3339, req.RecordedAt)
+				if err != nil {
+					http.Error(w, "invalid recorded_at format, use RFC3339", http.StatusBadRequest)
+					return
+				}
+				recordedAt = parsed.UTC()
+			}
+
+			reading, err := habitService.CreateBPReading(r.Context(), req.Systolic, req.Diastolic, req.Notes, recordedAt)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusCreated)
+			json.NewEncoder(w).Encode(reading)
+		})
+
+		r.Get("/bp", func(w http.ResponseWriter, r *http.Request) {
+			readings, err := habitService.ListBPReadings(r.Context())
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(readings)
+		})
+
+		r.Delete("/bp/{id}", func(w http.ResponseWriter, r *http.Request) {
+			id := chi.URLParam(r, "id")
+			if err := habitService.DeleteBPReading(r.Context(), id); err != nil {
+				if errors.Is(err, repository.ErrNotFound) {
+					http.Error(w, "reading not found", http.StatusNotFound)
+					return
+				}
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.WriteHeader(http.StatusNoContent)
+		})
+
 		r.Post("/check-in", func(w http.ResponseWriter, r *http.Request) {
 			var req struct {
 				HabitID string `json:"habit_id"`
