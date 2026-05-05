@@ -1,0 +1,31 @@
+name: Promote dev → main
+
+# A merge to dev means CI already passed on the PR — safe to promote.
+# Fast-forwards main to dev's HEAD via the GitHub API, which then
+# triggers the publish job in ci.yml to push images to Docker Hub.
+on:
+  push:
+    branches:
+      - dev
+
+permissions:
+  contents: write
+
+jobs:
+  promote:
+    name: Fast-forward main to dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Fast-forward main to dev
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          SHA=$(gh api repos/${{ github.repository }}/git/refs/heads/dev --jq '.object.sha')
+          echo "Promoting dev ($SHA) to main"
+          gh api repos/${{ github.repository }}/git/refs/heads/main \
+            --method PATCH \
+            --field sha="$SHA" \
+            --field force=false
+          echo "main is now at $SHA"
