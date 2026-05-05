@@ -229,7 +229,7 @@ jobs:
     name: Publish to Docker Hub
     runs-on: ubuntu-24.04
     timeout-minutes: 30
-    needs: [lint-and-test-backend, lint-and-test-frontend]
+    needs: [lint-and-test-backend, lint-and-test-frontend, docker-build]
     permissions:
       contents: read
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
