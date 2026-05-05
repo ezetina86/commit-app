@@ -9,7 +9,8 @@ describe('HabitGrid Component', () => {
     expect(svg).toBeInTheDocument();
     
     const rects = container.querySelectorAll('rect');
-    expect(rects.length).toBeGreaterThan(360);
+    // No completions → MIN_WEEKS (12) shown, so at least 12 * 7 = 84 squares
+    expect(rects.length).toBeGreaterThan(80);
     
     const highIntensity = container.querySelectorAll('.fill-accent-4');
     expect(highIntensity.length).toBe(0);
