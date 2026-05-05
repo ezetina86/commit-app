@@ -1,5 +1,6 @@
 services:
   api:
+    image: ezetina86/commit:api-latest
     build:
       context: ./api
       dockerfile: Dockerfile
@@ -16,6 +17,7 @@ services:
     restart: unless-stopped
 
   web:
+    image: ezetina86/commit:web-latest
     build:
       context: ./web
       dockerfile: Dockerfile
