@@ -39,15 +39,46 @@ describe('BloodPressureSection', () => {
     expect(screen.getByText(/no readings logged yet/i)).toBeInTheDocument();
   });
 
-  it('renders reading rows when readings are provided', () => {
+  it('hides reading rows by default when readings are provided', () => {
     const readings = [
       makeReading({ id: 'r1', systolic: 120, diastolic: 80 }),
       makeReading({ id: 'r2', systolic: 130, diastolic: 85, notes: 'stressed' }),
     ];
     render(<BloodPressureSection readings={readings} onAdd={onAdd} onDelete={onDelete} />);
+    expect(screen.queryByText('120/80')).not.toBeInTheDocument();
+    expect(screen.queryByText('130/85')).not.toBeInTheDocument();
+  });
+
+  it('shows history toggle button with count when readings are present', () => {
+    const readings = [
+      makeReading({ id: 'r1' }),
+      makeReading({ id: 'r2' }),
+    ];
+    render(<BloodPressureSection readings={readings} onAdd={onAdd} onDelete={onDelete} />);
+    expect(screen.getByRole('button', { name: /show history/i })).toBeInTheDocument();
+  });
+
+  it('shows reading rows after toggling history on', async () => {
+    const user = userEvent.setup();
+    const readings = [
+      makeReading({ id: 'r1', systolic: 120, diastolic: 80 }),
+      makeReading({ id: 'r2', systolic: 130, diastolic: 85, notes: 'stressed' }),
+    ];
+    render(<BloodPressureSection readings={readings} onAdd={onAdd} onDelete={onDelete} />);
+    await user.click(screen.getByRole('button', { name: /show history/i }));
     expect(screen.getByText('120/80')).toBeInTheDocument();
     expect(screen.getByText('130/85')).toBeInTheDocument();
     expect(screen.getByText('stressed')).toBeInTheDocument();
+  });
+
+  it('hides reading rows after toggling history off', async () => {
+    const user = userEvent.setup();
+    const readings = [makeReading({ id: 'r1', systolic: 120, diastolic: 80 })];
+    render(<BloodPressureSection readings={readings} onAdd={onAdd} onDelete={onDelete} />);
+    await user.click(screen.getByRole('button', { name: /show history/i }));
+    expect(screen.getByText('120/80')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /hide history/i }));
+    expect(screen.queryByText('120/80')).not.toBeInTheDocument();
   });
 
   it('does not render chart when no readings', () => {
@@ -107,7 +138,7 @@ describe('BloodPressureSection', () => {
     const readings = [makeReading({ id: 'r1' })];
     render(<BloodPressureSection readings={readings} onAdd={onAdd} onDelete={onDelete} />);
 
-    // Hover to reveal delete button (group-hover removes opacity-0)
+    await user.click(screen.getByRole('button', { name: /show history/i }));
     const deleteBtn = screen.getByRole('button', { name: /delete reading/i });
     await user.click(deleteBtn);
 
@@ -119,6 +150,7 @@ describe('BloodPressureSection', () => {
     const readings = [makeReading({ id: 'r1' })];
     render(<BloodPressureSection readings={readings} onAdd={onAdd} onDelete={onDelete} />);
 
+    await user.click(screen.getByRole('button', { name: /show history/i }));
     await user.click(screen.getByRole('button', { name: /delete reading/i }));
     await user.click(screen.getByRole('button', { name: /confirm delete/i }));
 
@@ -130,6 +162,7 @@ describe('BloodPressureSection', () => {
     const readings = [makeReading({ id: 'r1' })];
     render(<BloodPressureSection readings={readings} onAdd={onAdd} onDelete={onDelete} />);
 
+    await user.click(screen.getByRole('button', { name: /show history/i }));
     await user.click(screen.getByRole('button', { name: /delete reading/i }));
     await user.click(screen.getByRole('button', { name: /^cancel$/i }));
 

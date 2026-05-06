@@ -326,13 +326,6 @@ function App() {
 
       <main className="w-full flex flex-col gap-8">
 
-        {/* Blood Pressure Section */}
-        <BloodPressureSection
-          readings={bpReadings}
-          onAdd={handleAddBP}
-          onDelete={handleDeleteBP}
-        />
-
         {/* Form and Tag Filter Area */}
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1">
@@ -633,6 +626,13 @@ function App() {
           </div>
         )}
         </div>
+
+        {/* Blood Pressure Section */}
+        <BloodPressureSection
+          readings={bpReadings}
+          onAdd={handleAddBP}
+          onDelete={handleDeleteBP}
+        />
 
         {/* Insights Panel — fixed overlay, bottom-right */}
         {showInsights && (
