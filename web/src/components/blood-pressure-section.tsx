@@ -6,6 +6,7 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
+  ReferenceLine,
   ResponsiveContainer,
   type TooltipProps,
 } from 'recharts';
@@ -69,6 +70,7 @@ export function BloodPressureSection({ readings, onAdd, onDelete }: BloodPressur
   const [submitting, setSubmitting] = useState(false);
 
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -180,12 +182,29 @@ export function BloodPressureSection({ readings, onAdd, onDelete }: BloodPressur
                 tickLine={false}
               />
               <YAxis
-                domain={['auto', 'auto']}
+                domain={([dataMin, dataMax]: [number, number]) => [
+                  Math.min(dataMin, 70) - 5,
+                  Math.max(dataMax, 130) + 5,
+                ]}
                 tick={{ fill: '#7D8590', fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }}
                 axisLine={false}
                 tickLine={false}
               />
               <Tooltip content={<BPTooltip />} />
+              <ReferenceLine
+                y={120}
+                stroke="#f97316"
+                strokeDasharray="4 3"
+                strokeWidth={1}
+                label={{ value: 'Sys 120', position: 'insideTopRight', fill: '#f97316', fontSize: 9, fontFamily: 'JetBrains Mono, monospace' }}
+              />
+              <ReferenceLine
+                y={80}
+                stroke="#facc15"
+                strokeDasharray="4 3"
+                strokeWidth={1}
+                label={{ value: 'Dia 80', position: 'insideBottomRight', fill: '#facc15', fontSize: 9, fontFamily: 'JetBrains Mono, monospace' }}
+              />
               <Line
                 type="monotone"
                 dataKey="systolic"
@@ -211,30 +230,43 @@ export function BloodPressureSection({ readings, onAdd, onDelete }: BloodPressur
       {readings.length === 0 ? (
         <p className="text-text-secondary text-xs uppercase tracking-widest py-4">No readings logged yet</p>
       ) : (
-        <div className="overflow-y-auto max-h-[280px] flex flex-col gap-1 mt-2" role="list" aria-label="Blood pressure readings">
-          {readings.map((r) => (
-            <div
-              key={r.id}
-              role="listitem"
-              className="flex items-center justify-between gap-4 px-3 py-2 rounded-sm bg-background hover:bg-white/5 transition-colors group"
-            >
-              <span className="text-text-secondary text-xs font-mono shrink-0">{formatCentral(r.recorded_at)}</span>
-              <span className="text-accent-4 text-sm font-bold font-mono shrink-0">
-                {r.systolic}/{r.diastolic}
-              </span>
-              {r.notes && (
-                <span className="text-text-secondary text-xs font-mono truncate flex-1">{r.notes}</span>
-              )}
-              {!r.notes && <span className="flex-1" />}
-              <button
-                onClick={() => setConfirmDeleteId(r.id)}
-                aria-label={`Delete reading from ${formatCentral(r.recorded_at)}`}
-                className="text-red-500/50 hover:text-red-500 text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 shrink-0"
-              >
-                Delete
-              </button>
+        <div className="mt-2">
+          <button
+            type="button"
+            onClick={() => setShowHistory(v => !v)}
+            aria-expanded={showHistory}
+            aria-controls="bp-history-list"
+            className="text-xs font-mono text-text-secondary hover:text-text-primary uppercase tracking-widest cursor-pointer transition-colors mb-2"
+          >
+            {showHistory ? 'Hide history' : `Show history (${readings.length})`}
+          </button>
+          {showHistory && (
+            <div id="bp-history-list" className="overflow-y-auto max-h-[280px] flex flex-col gap-1" role="list" aria-label="Blood pressure readings">
+              {readings.map((r) => (
+                <div
+                  key={r.id}
+                  role="listitem"
+                  className="flex items-center justify-between gap-4 px-3 py-2 rounded-sm bg-background hover:bg-white/5 transition-colors group"
+                >
+                  <span className="text-text-secondary text-xs font-mono shrink-0">{formatCentral(r.recorded_at)}</span>
+                  <span className="text-accent-4 text-sm font-bold font-mono shrink-0">
+                    {r.systolic}/{r.diastolic}
+                  </span>
+                  {r.notes && (
+                    <span className="text-text-secondary text-xs font-mono truncate flex-1">{r.notes}</span>
+                  )}
+                  {!r.notes && <span className="flex-1" />}
+                  <button
+                    onClick={() => setConfirmDeleteId(r.id)}
+                    aria-label={`Delete reading from ${formatCentral(r.recorded_at)}`}
+                    className="text-red-500/50 hover:text-red-500 text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 shrink-0"
+                  >
+                    Delete
+                  </button>
+                </div>
+              ))}
             </div>
-          ))}
+          )}
         </div>
       )}
     </section>
