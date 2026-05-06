@@ -11,6 +11,12 @@ import {
   type TooltipProps,
 } from 'recharts';
 
+// Design token mirrors — Recharts SVG props require literal values, not CSS vars
+const TOKEN_ACCENT_4 = '#39D353';
+const TOKEN_ACCENT_3 = '#26A641';
+const TOKEN_TEXT_SECONDARY = '#7D8590';
+const TOKEN_CHART_GRID = '#ffffff0d';
+
 export interface BloodPressureReading {
   id: string;
   systolic: number;
@@ -124,7 +130,9 @@ export function BloodPressureSection({ readings, onAdd, onDelete }: BloodPressur
         </div>
       )}
 
-      <h2 className="text-xl font-bold uppercase tracking-tight mb-4">Blood Pressure</h2>
+      <h2 className="text-xl font-bold uppercase tracking-tight mb-4">
+        <span className="text-accent-3 mr-2 select-none" aria-hidden="true">&gt;</span>Blood Pressure
+      </h2>
 
       {/* Add form */}
       <form onSubmit={handleSubmit} className="flex flex-wrap gap-2 mb-2" aria-label="Log blood pressure reading">
@@ -173,11 +181,11 @@ export function BloodPressureSection({ readings, onAdd, onDelete }: BloodPressur
         <div className="mt-6 mb-6" aria-label="Blood pressure trend chart">
           <ResponsiveContainer width="100%" height={180}>
             <LineChart data={chartData} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#ffffff0d" />
+              <CartesianGrid strokeDasharray="3 3" stroke={TOKEN_CHART_GRID} />
               <XAxis
                 dataKey="recorded_at"
                 tickFormatter={formatCentralShort}
-                tick={{ fill: '#7D8590', fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }}
+                tick={{ fill: TOKEN_TEXT_SECONDARY, fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }}
                 axisLine={false}
                 tickLine={false}
               />
@@ -186,39 +194,39 @@ export function BloodPressureSection({ readings, onAdd, onDelete }: BloodPressur
                   Math.min(dataMin, 70) - 5,
                   Math.max(dataMax, 130) + 5,
                 ]}
-                tick={{ fill: '#7D8590', fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }}
+                tick={{ fill: TOKEN_TEXT_SECONDARY, fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }}
                 axisLine={false}
                 tickLine={false}
               />
               <Tooltip content={<BPTooltip />} />
               <ReferenceLine
                 y={120}
-                stroke="#f97316"
+                stroke={TOKEN_TEXT_SECONDARY}
                 strokeDasharray="4 3"
                 strokeWidth={1}
-                label={{ value: 'Sys 120', position: 'insideTopRight', fill: '#f97316', fontSize: 9, fontFamily: 'JetBrains Mono, monospace' }}
+                label={{ value: 'Sys 120', position: 'insideTopRight', fill: TOKEN_TEXT_SECONDARY, fontSize: 9, fontFamily: 'JetBrains Mono, monospace' }}
               />
               <ReferenceLine
                 y={80}
-                stroke="#facc15"
+                stroke={TOKEN_TEXT_SECONDARY}
                 strokeDasharray="4 3"
                 strokeWidth={1}
-                label={{ value: 'Dia 80', position: 'insideBottomRight', fill: '#facc15', fontSize: 9, fontFamily: 'JetBrains Mono, monospace' }}
+                label={{ value: 'Dia 80', position: 'insideBottomRight', fill: TOKEN_TEXT_SECONDARY, fontSize: 9, fontFamily: 'JetBrains Mono, monospace' }}
               />
               <Line
                 type="monotone"
                 dataKey="systolic"
-                stroke="#39D353"
+                stroke={TOKEN_ACCENT_4}
                 strokeWidth={2}
-                dot={{ fill: '#39D353', r: 3 }}
+                dot={{ fill: TOKEN_ACCENT_4, r: 3 }}
                 activeDot={{ r: 5 }}
               />
               <Line
                 type="monotone"
                 dataKey="diastolic"
-                stroke="#26A641"
+                stroke={TOKEN_ACCENT_3}
                 strokeWidth={2}
-                dot={{ fill: '#26A641', r: 3 }}
+                dot={{ fill: TOKEN_ACCENT_3, r: 3 }}
                 activeDot={{ r: 5 }}
               />
             </LineChart>
@@ -228,7 +236,7 @@ export function BloodPressureSection({ readings, onAdd, onDelete }: BloodPressur
 
       {/* Readings log */}
       {readings.length === 0 ? (
-        <p className="text-text-secondary text-xs uppercase tracking-widest py-4">No readings logged yet</p>
+        <p className="text-text-secondary text-xs uppercase tracking-widest py-4">No Readings Logged</p>
       ) : (
         <div className="mt-2">
           <button
@@ -238,10 +246,10 @@ export function BloodPressureSection({ readings, onAdd, onDelete }: BloodPressur
             aria-controls="bp-history-list"
             className="text-xs font-mono text-text-secondary hover:text-text-primary uppercase tracking-widest cursor-pointer transition-colors mb-2"
           >
-            {showHistory ? 'Hide history' : `Show history (${readings.length})`}
+            {showHistory ? '[hide history]' : `[show history (${readings.length})]`}
           </button>
           {showHistory && (
-            <div id="bp-history-list" className="overflow-y-auto max-h-[280px] flex flex-col gap-1" role="list" aria-label="Blood pressure readings">
+            <div id="bp-history-list" className="overflow-y-auto max-h-[280px] flex flex-col gap-1 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-2" role="list" aria-label="Blood pressure readings">
               {readings.map((r) => (
                 <div
                   key={r.id}

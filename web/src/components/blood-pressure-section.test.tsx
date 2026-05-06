@@ -36,7 +36,7 @@ describe('BloodPressureSection', () => {
 
   it('shows empty state when no readings', () => {
     render(<BloodPressureSection readings={[]} onAdd={onAdd} onDelete={onDelete} />);
-    expect(screen.getByText(/no readings logged yet/i)).toBeInTheDocument();
+    expect(screen.getByText(/no readings logged/i)).toBeInTheDocument();
   });
 
   it('hides reading rows by default when readings are provided', () => {

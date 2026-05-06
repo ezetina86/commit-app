@@ -104,6 +104,7 @@ function App() {
       body: JSON.stringify({ systolic, diastolic, notes }),
     });
     fetchBPReadings();
+    setToast({ message: 'Reading saved', visible: true });
   };
 
   const handleDeleteBP = (id: string) => {
