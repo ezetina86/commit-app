@@ -122,7 +122,8 @@ export function EloSection({ readings, target, onAdd, onDelete, onTargetChange }
     return [...readings]
       .sort((a, b) => a.recorded_at.localeCompare(b.recorded_at))
       .map((r) => ({
-        dateLabel: formatDateShort(r.recorded_at),
+        recorded_at: r.recorded_at,
+        dateLabel: formatDate(r.recorded_at),
         duolingo: r.platform === 'duolingo' ? r.rating : undefined,
         chesscom: r.platform === 'chesscom' ? r.rating : undefined,
       }));
@@ -249,7 +250,8 @@ export function EloSection({ readings, target, onAdd, onDelete, onTargetChange }
             <LineChart data={chartData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={TOKEN_CHART_GRID} />
               <XAxis
-                dataKey="dateLabel"
+                dataKey="recorded_at"
+                tickFormatter={formatDateShort}
                 tick={{ fill: TOKEN_TEXT_SECONDARY, fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }}
                 axisLine={false}
                 tickLine={false}
