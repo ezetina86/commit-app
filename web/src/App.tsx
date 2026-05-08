@@ -132,11 +132,11 @@ function App() {
     });
   };
 
-  const handleAddElo = async (platform: 'duolingo' | 'chesscom', rating: number, notes: string) => {
+  const handleAddElo = async (platform: 'duolingo' | 'chesscom', rating: number) => {
     await fetch('/api/elo', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ platform, rating, notes }),
+      body: JSON.stringify({ platform, rating }),
     });
     fetchEloData();
     setToast({ message: 'ELO rating saved', visible: true });

@@ -87,15 +87,19 @@ describe('EloSection', () => {
     expect(onAdd).not.toHaveBeenCalled();
   });
 
-  it('calls onAdd with correct args and clears form', async () => {
+  it('calls onAdd without notes and clears form', async () => {
     const user = userEvent.setup();
     render(<EloSection readings={[]} target={800} onAdd={onAdd} onDelete={onDelete} onTargetChange={onTargetChange} />);
     await user.selectOptions(screen.getByRole('combobox', { name: /platform/i }), 'duolingo');
     await user.clear(screen.getByRole('spinbutton', { name: /elo rating/i }));
     await user.type(screen.getByRole('spinbutton', { name: /elo rating/i }), '750');
-    await user.type(screen.getByRole('textbox', { name: /notes/i }), 'after practice');
     await user.click(screen.getByRole('button', { name: /log rating/i }));
-    await waitFor(() => expect(onAdd).toHaveBeenCalledWith('duolingo', 750, 'after practice'));
+    await waitFor(() => expect(onAdd).toHaveBeenCalledWith('duolingo', 750));
+  });
+
+  it('form has no notes field', () => {
+    render(<EloSection readings={[]} target={800} onAdd={onAdd} onDelete={onDelete} onTargetChange={onTargetChange} />);
+    expect(screen.queryByRole('textbox', { name: /notes/i })).not.toBeInTheDocument();
   });
 
   it('opens target edit input on target button click', async () => {
@@ -125,13 +129,24 @@ describe('EloSection', () => {
     expect(screen.getByRole('button', { name: /elo target 800/i })).toBeInTheDocument();
   });
 
+  it('reverts target and closes edit on invalid (zero) save', async () => {
+    const user = userEvent.setup();
+    render(<EloSection readings={[]} target={800} onAdd={onAdd} onDelete={onDelete} onTargetChange={onTargetChange} />);
+    await user.click(screen.getByRole('button', { name: /elo target 800/i }));
+    const input = screen.getByRole('spinbutton', { name: /elo target/i });
+    await user.clear(input);
+    await user.type(input, '0');
+    await user.click(screen.getByRole('button', { name: /^save$/i }));
+    expect(onTargetChange).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: /elo target 800/i })).toBeInTheDocument();
+  });
+
   it('opens delete confirm modal and calls onDelete', async () => {
     const user = userEvent.setup();
     const readings = [makeReading({ id: 'e1', rating: 720 })];
     render(<EloSection readings={readings} target={800} onAdd={onAdd} onDelete={onDelete} onTargetChange={onTargetChange} />);
     await user.click(screen.getByRole('button', { name: /show history/i }));
-    const deleteBtn = screen.getByRole('button', { name: /delete elo reading/i });
-    await user.click(deleteBtn);
+    await user.click(screen.getByRole('button', { name: /delete elo reading/i }));
     expect(screen.getByText(/permanently delete this elo reading/i)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /confirm delete/i }));
     expect(onDelete).toHaveBeenCalledWith('e1');
