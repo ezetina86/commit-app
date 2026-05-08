@@ -119,18 +119,13 @@ export function EloSection({ readings, target, onAdd, onDelete, onTargetChange }
   };
 
   const chartData = useMemo(() => {
-    const sorted = [...readings].reverse();
-    const byDay = new Map<string, { dateLabel: string; duolingo?: number; chesscom?: number }>();
-    for (const r of sorted) {
-      const dayKey = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Chicago' }).format(new Date(r.recorded_at));
-      const existing = byDay.get(dayKey) ?? { dateLabel: formatDateShort(r.recorded_at) };
-      if (r.platform === 'duolingo') existing.duolingo = r.rating;
-      else existing.chesscom = r.rating;
-      byDay.set(dayKey, existing);
-    }
-    return Array.from(byDay.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([, v]) => v);
+    return [...readings]
+      .sort((a, b) => a.recorded_at.localeCompare(b.recorded_at))
+      .map((r) => ({
+        dateLabel: formatDateShort(r.recorded_at),
+        duolingo: r.platform === 'duolingo' ? r.rating : undefined,
+        chesscom: r.platform === 'chesscom' ? r.rating : undefined,
+      }));
   }, [readings]);
 
   /* v8 ignore start */
