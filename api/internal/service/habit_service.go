@@ -20,6 +20,11 @@ type HabitRepository interface {
 	CreateBPReading(ctx context.Context, systolic, diastolic int, notes string, recordedAt time.Time) (*models.BloodPressureReading, error)
 	ListBPReadings(ctx context.Context) ([]*models.BloodPressureReading, error)
 	DeleteBPReading(ctx context.Context, id string) error
+	CreateEloReading(ctx context.Context, platform string, rating int, notes string, recordedAt time.Time) (*models.EloReading, error)
+	ListEloReadings(ctx context.Context) ([]*models.EloReading, error)
+	DeleteEloReading(ctx context.Context, id string) error
+	GetSetting(ctx context.Context, key string) (string, error)
+	SetSetting(ctx context.Context, key, value string) error
 }
 
 type HabitService struct {
@@ -187,6 +192,26 @@ func (s *HabitService) ListBPReadings(ctx context.Context) ([]*models.BloodPress
 
 func (s *HabitService) DeleteBPReading(ctx context.Context, id string) error {
 	return s.repo.DeleteBPReading(ctx, id)
+}
+
+func (s *HabitService) CreateEloReading(ctx context.Context, platform string, rating int, notes string, recordedAt time.Time) (*models.EloReading, error) {
+	return s.repo.CreateEloReading(ctx, platform, rating, notes, recordedAt)
+}
+
+func (s *HabitService) ListEloReadings(ctx context.Context) ([]*models.EloReading, error) {
+	return s.repo.ListEloReadings(ctx)
+}
+
+func (s *HabitService) DeleteEloReading(ctx context.Context, id string) error {
+	return s.repo.DeleteEloReading(ctx, id)
+}
+
+func (s *HabitService) GetSetting(ctx context.Context, key string) (string, error) {
+	return s.repo.GetSetting(ctx, key)
+}
+
+func (s *HabitService) SetSetting(ctx context.Context, key, value string) error {
+	return s.repo.SetSetting(ctx, key, value)
 }
 
 func (s *HabitService) CheckIn(ctx context.Context, habitID string, dateStr string, value int) error {

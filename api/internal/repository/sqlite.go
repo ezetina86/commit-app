@@ -78,6 +78,18 @@ func (r *SQLiteRepository) initSchema() error {
 			recorded_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 		);`,
 		`CREATE INDEX IF NOT EXISTS idx_bp_recorded_at ON blood_pressure_readings(recorded_at);`,
+		`CREATE TABLE IF NOT EXISTS elo_readings (
+			id          TEXT PRIMARY KEY,
+			platform    TEXT NOT NULL,
+			rating      INTEGER NOT NULL,
+			notes       TEXT DEFAULT '',
+			recorded_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+		);`,
+		`CREATE INDEX IF NOT EXISTS idx_elo_recorded_at ON elo_readings(recorded_at);`,
+		`CREATE TABLE IF NOT EXISTS app_settings (
+			key   TEXT PRIMARY KEY,
+			value TEXT NOT NULL
+		);`,
 	}
 
 	for _, q := range queries {
@@ -345,6 +357,75 @@ func (r *SQLiteRepository) DeleteBPReading(ctx context.Context, id string) error
 		return ErrNotFound
 	}
 	return nil
+}
+
+func (r *SQLiteRepository) CreateEloReading(ctx context.Context, platform string, rating int, notes string, recordedAt time.Time) (*models.EloReading, error) {
+	id := uuid.New().String()
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO elo_readings (id, platform, rating, notes, recorded_at) VALUES (?, ?, ?, ?, ?)`,
+		id, platform, rating, notes, recordedAt.UTC(),
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &models.EloReading{ID: id, Platform: platform, Rating: rating, Notes: notes, RecordedAt: recordedAt}, nil
+}
+
+func (r *SQLiteRepository) ListEloReadings(ctx context.Context) ([]*models.EloReading, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT id, platform, rating, IFNULL(notes, ''), recorded_at FROM elo_readings ORDER BY recorded_at DESC`,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var readings []*models.EloReading
+	for rows.Next() {
+		e := &models.EloReading{}
+		if err := rows.Scan(&e.ID, &e.Platform, &e.Rating, &e.Notes, &e.RecordedAt); err != nil {
+			return nil, err
+		}
+		readings = append(readings, e)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if readings == nil {
+		readings = []*models.EloReading{}
+	}
+	return readings, nil
+}
+
+func (r *SQLiteRepository) DeleteEloReading(ctx context.Context, id string) error {
+	result, err := r.db.ExecContext(ctx, `DELETE FROM elo_readings WHERE id = ?`, id)
+	if err != nil {
+		return err
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func (r *SQLiteRepository) GetSetting(ctx context.Context, key string) (string, error) {
+	var val string
+	err := r.db.QueryRowContext(ctx, `SELECT value FROM app_settings WHERE key = ?`, key).Scan(&val)
+	if err == sql.ErrNoRows {
+		return "", ErrNotFound
+	}
+	return val, err
+}
+
+func (r *SQLiteRepository) SetSetting(ctx context.Context, key, value string) error {
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO app_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+		key, value,
+	)
+	return err
 }
 
 func (r *SQLiteRepository) Close() error {
