@@ -80,6 +80,22 @@ func (m *mockHabitRepository) DeleteBPReading(ctx context.Context, id string) er
 	return errors.New("record not found")
 }
 
+func (m *mockHabitRepository) CreateEloReading(ctx context.Context, platform string, rating int, notes string, recordedAt time.Time) (*models.EloReading, error) {
+	return &models.EloReading{ID: "mock-elo-id", Platform: platform, Rating: rating, Notes: notes, RecordedAt: recordedAt}, nil
+}
+func (m *mockHabitRepository) ListEloReadings(ctx context.Context) ([]*models.EloReading, error) {
+	return []*models.EloReading{}, nil
+}
+func (m *mockHabitRepository) DeleteEloReading(ctx context.Context, id string) error {
+	return nil
+}
+func (m *mockHabitRepository) GetSetting(ctx context.Context, key string) (string, error) {
+	return "", errors.New("record not found")
+}
+func (m *mockHabitRepository) SetSetting(ctx context.Context, key, value string) error {
+	return nil
+}
+
 func TestGenerateInsights(t *testing.T) {
 	today := time.Now().UTC().Format("2006-01-02")
 	yesterday := time.Now().UTC().AddDate(0, 0, -1).Format("2006-01-02")

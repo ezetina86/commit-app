@@ -323,3 +323,215 @@ func TestUpdateHabit_Boolean(t *testing.T) {
 		t.Errorf("expected habit_type 'boolean' after update, got %q", fetched.HabitType)
 	}
 }
+
+// ── Blood Pressure ────────────────────────────────────────────────────────────
+
+func TestCreateAndListBPReadings(t *testing.T) {
+	repo := newTestRepo(t)
+	ctx := context.Background()
+	now := time.Now().UTC()
+
+	bp, err := repo.CreateBPReading(ctx, 120, 80, "resting", now)
+	if err != nil {
+		t.Fatalf("CreateBPReading: %v", err)
+	}
+	if bp.ID == "" {
+		t.Error("expected non-empty ID")
+	}
+	if bp.Systolic != 120 || bp.Diastolic != 80 {
+		t.Errorf("got %d/%d, want 120/80", bp.Systolic, bp.Diastolic)
+	}
+
+	list, err := repo.ListBPReadings(ctx)
+	if err != nil {
+		t.Fatalf("ListBPReadings: %v", err)
+	}
+	if len(list) != 1 {
+		t.Fatalf("expected 1 reading, got %d", len(list))
+	}
+	if list[0].Notes != "resting" {
+		t.Errorf("expected notes %q, got %q", "resting", list[0].Notes)
+	}
+}
+
+func TestListBPReadings_Empty(t *testing.T) {
+	repo := newTestRepo(t)
+	ctx := context.Background()
+
+	list, err := repo.ListBPReadings(ctx)
+	if err != nil {
+		t.Fatalf("ListBPReadings empty: %v", err)
+	}
+	if list == nil {
+		t.Error("expected non-nil empty slice")
+	}
+	if len(list) != 0 {
+		t.Errorf("expected 0 readings, got %d", len(list))
+	}
+}
+
+func TestDeleteBPReading(t *testing.T) {
+	repo := newTestRepo(t)
+	ctx := context.Background()
+	now := time.Now().UTC()
+
+	bp, _ := repo.CreateBPReading(ctx, 130, 85, "", now)
+
+	if err := repo.DeleteBPReading(ctx, bp.ID); err != nil {
+		t.Fatalf("DeleteBPReading: %v", err)
+	}
+
+	list, _ := repo.ListBPReadings(ctx)
+	if len(list) != 0 {
+		t.Errorf("expected 0 readings after delete, got %d", len(list))
+	}
+}
+
+func TestDeleteBPReading_NotFound(t *testing.T) {
+	repo := newTestRepo(t)
+	ctx := context.Background()
+
+	err := repo.DeleteBPReading(ctx, "non-existent-id")
+	if !errors.Is(err, ErrNotFound) {
+		t.Errorf("expected ErrNotFound, got %v", err)
+	}
+}
+
+// ── ELO readings ─────────────────────────────────────────────────────────────
+
+func TestCreateAndListEloReadings(t *testing.T) {
+	repo := newTestRepo(t)
+	ctx := context.Background()
+	now := time.Now().UTC()
+
+	r, err := repo.CreateEloReading(ctx, "chesscom", 750, "after tournament", now)
+	if err != nil {
+		t.Fatalf("CreateEloReading: %v", err)
+	}
+	if r.ID == "" {
+		t.Error("expected non-empty ID")
+	}
+	if r.Platform != "chesscom" {
+		t.Errorf("got platform %q, want %q", r.Platform, "chesscom")
+	}
+	if r.Rating != 750 {
+		t.Errorf("got rating %d, want 750", r.Rating)
+	}
+
+	list, err := repo.ListEloReadings(ctx)
+	if err != nil {
+		t.Fatalf("ListEloReadings: %v", err)
+	}
+	if len(list) != 1 {
+		t.Fatalf("expected 1 reading, got %d", len(list))
+	}
+	if list[0].Notes != "after tournament" {
+		t.Errorf("notes: got %q, want %q", list[0].Notes, "after tournament")
+	}
+}
+
+func TestListEloReadings_Empty(t *testing.T) {
+	repo := newTestRepo(t)
+	ctx := context.Background()
+
+	list, err := repo.ListEloReadings(ctx)
+	if err != nil {
+		t.Fatalf("ListEloReadings empty: %v", err)
+	}
+	if list == nil {
+		t.Error("expected non-nil empty slice")
+	}
+	if len(list) != 0 {
+		t.Errorf("expected 0 readings, got %d", len(list))
+	}
+}
+
+func TestListEloReadings_MultiPlatform(t *testing.T) {
+	repo := newTestRepo(t)
+	ctx := context.Background()
+	now := time.Now().UTC()
+
+	repo.CreateEloReading(ctx, "chesscom", 700, "", now)
+	repo.CreateEloReading(ctx, "duolingo", 650, "", now.Add(time.Second))
+
+	list, err := repo.ListEloReadings(ctx)
+	if err != nil {
+		t.Fatalf("ListEloReadings: %v", err)
+	}
+	if len(list) != 2 {
+		t.Fatalf("expected 2 readings, got %d", len(list))
+	}
+	// Newest first
+	if list[0].Platform != "duolingo" {
+		t.Errorf("expected newest first (duolingo), got %q", list[0].Platform)
+	}
+}
+
+func TestDeleteEloReading(t *testing.T) {
+	repo := newTestRepo(t)
+	ctx := context.Background()
+	now := time.Now().UTC()
+
+	r, _ := repo.CreateEloReading(ctx, "chesscom", 720, "", now)
+
+	if err := repo.DeleteEloReading(ctx, r.ID); err != nil {
+		t.Fatalf("DeleteEloReading: %v", err)
+	}
+
+	list, _ := repo.ListEloReadings(ctx)
+	if len(list) != 0 {
+		t.Errorf("expected 0 readings after delete, got %d", len(list))
+	}
+}
+
+func TestDeleteEloReading_NotFound(t *testing.T) {
+	repo := newTestRepo(t)
+	ctx := context.Background()
+
+	err := repo.DeleteEloReading(ctx, "non-existent-id")
+	if !errors.Is(err, ErrNotFound) {
+		t.Errorf("expected ErrNotFound, got %v", err)
+	}
+}
+
+// ── Settings ──────────────────────────────────────────────────────────────────
+
+func TestGetSetting_NotFound(t *testing.T) {
+	repo := newTestRepo(t)
+	ctx := context.Background()
+
+	_, err := repo.GetSetting(ctx, "missing_key")
+	if !errors.Is(err, ErrNotFound) {
+		t.Errorf("expected ErrNotFound, got %v", err)
+	}
+}
+
+func TestSetAndGetSetting(t *testing.T) {
+	repo := newTestRepo(t)
+	ctx := context.Background()
+
+	if err := repo.SetSetting(ctx, "elo_target", "800"); err != nil {
+		t.Fatalf("SetSetting: %v", err)
+	}
+
+	val, err := repo.GetSetting(ctx, "elo_target")
+	if err != nil {
+		t.Fatalf("GetSetting: %v", err)
+	}
+	if val != "800" {
+		t.Errorf("got %q, want %q", val, "800")
+	}
+}
+
+func TestSetSetting_Upsert(t *testing.T) {
+	repo := newTestRepo(t)
+	ctx := context.Background()
+
+	repo.SetSetting(ctx, "elo_target", "800")
+	repo.SetSetting(ctx, "elo_target", "1200")
+
+	val, _ := repo.GetSetting(ctx, "elo_target")
+	if val != "1200" {
+		t.Errorf("got %q, want %q after upsert", val, "1200")
+	}
+}

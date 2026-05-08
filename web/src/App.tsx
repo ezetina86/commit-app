@@ -5,6 +5,7 @@ import { InsightsPanel, type Insight } from './components/insights-panel';
 import { QuoteBanner } from './components/quote-banner';
 import { Toast } from './components/toast';
 import { BloodPressureSection, type BloodPressureReading } from './components/blood-pressure-section';
+import { EloSection, type EloReading } from './components/elo-section';
 
 interface Habit {
   id: string;
@@ -21,6 +22,8 @@ interface Habit {
 function App() {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [bpReadings, setBpReadings] = useState<BloodPressureReading[]>([]);
+  const [eloReadings, setEloReadings] = useState<EloReading[]>([]);
+  const [eloTarget, setEloTarget] = useState(800);
   const [insights, setInsights] = useState<Insight[]>([]);
   const [newHabitName, setNewHabitName] = useState('');
   const [newHabitUnit, setNewHabitUnit] = useState('');
@@ -79,10 +82,26 @@ function App() {
     }
   }, []);
 
+  const fetchEloData = useCallback(async () => {
+    try {
+      const [readingsRes, targetRes] = await Promise.all([
+        fetch('/api/elo'),
+        fetch('/api/elo/target'),
+      ]);
+      const readingsData = await readingsRes.json();
+      const targetData = await targetRes.json();
+      setEloReadings(Array.isArray(readingsData) ? readingsData : []);
+      if (typeof targetData?.target === 'number') setEloTarget(targetData.target);
+    } catch (err) {
+      console.error('Failed to fetch ELO data:', err);
+    }
+  }, []);
+
   useEffect(() => {
     fetchHabitsAndInsights(showArchived);
     fetchBPReadings();
-  }, [showArchived, fetchHabitsAndInsights, fetchBPReadings]);
+    fetchEloData();
+  }, [showArchived, fetchHabitsAndInsights, fetchBPReadings, fetchEloData]);
 
   const allTags = useMemo(() => {
     const tags = new Set<string>();
@@ -111,6 +130,32 @@ function App() {
     fetch(`/api/bp/${id}`, { method: 'DELETE' }).then(() => fetchBPReadings()).catch((err) => {
       console.error('Failed to delete BP reading:', err);
     });
+  };
+
+  const handleAddElo = async (platform: 'duolingo' | 'chesscom', rating: number, notes: string) => {
+    await fetch('/api/elo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ platform, rating, notes }),
+    });
+    fetchEloData();
+    setToast({ message: 'ELO rating saved', visible: true });
+  };
+
+  const handleDeleteElo = (id: string) => {
+    fetch(`/api/elo/${id}`, { method: 'DELETE' }).then(() => fetchEloData()).catch((err) => {
+      console.error('Failed to delete ELO reading:', err);
+    });
+  };
+
+  const handleEloTargetChange = async (newTarget: number) => {
+    await fetch('/api/elo/target', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target: newTarget }),
+    });
+    setEloTarget(newTarget);
+    setToast({ message: `ELO target updated to ${newTarget}`, visible: true });
   };
 
   const parseTags = (str: string) => {
@@ -627,6 +672,15 @@ function App() {
           </div>
         )}
         </div>
+
+        {/* Chess ELO Section */}
+        <EloSection
+          readings={eloReadings}
+          target={eloTarget}
+          onAdd={handleAddElo}
+          onDelete={handleDeleteElo}
+          onTargetChange={handleEloTargetChange}
+        />
 
         {/* Blood Pressure Section */}
         <BloodPressureSection

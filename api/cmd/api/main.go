@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/ezetina/commit/api/internal/models"
@@ -278,6 +279,99 @@ func main() {
 				return
 			}
 			w.WriteHeader(http.StatusNoContent)
+		})
+
+		r.Post("/elo", func(w http.ResponseWriter, r *http.Request) {
+			var req struct {
+				Platform   string `json:"platform"`
+				Rating     int    `json:"rating"`
+				Notes      string `json:"notes"`
+				RecordedAt string `json:"recorded_at"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			if req.Platform != "duolingo" && req.Platform != "chesscom" {
+				http.Error(w, "platform must be duolingo or chesscom", http.StatusBadRequest)
+				return
+			}
+			if req.Rating <= 0 {
+				http.Error(w, "rating must be greater than 0", http.StatusBadRequest)
+				return
+			}
+			recordedAt := time.Now().UTC()
+			if req.RecordedAt != "" {
+				parsed, err := time.Parse(time.RFC3339, req.RecordedAt)
+				if err != nil {
+					http.Error(w, "invalid recorded_at format, use RFC3339", http.StatusBadRequest)
+					return
+				}
+				recordedAt = parsed.UTC()
+			}
+			reading, err := habitService.CreateEloReading(r.Context(), req.Platform, req.Rating, req.Notes, recordedAt)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusCreated)
+			json.NewEncoder(w).Encode(reading)
+		})
+
+		r.Get("/elo", func(w http.ResponseWriter, r *http.Request) {
+			readings, err := habitService.ListEloReadings(r.Context())
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(readings)
+		})
+
+		r.Delete("/elo/{id}", func(w http.ResponseWriter, r *http.Request) {
+			id := chi.URLParam(r, "id")
+			if err := habitService.DeleteEloReading(r.Context(), id); err != nil {
+				if errors.Is(err, repository.ErrNotFound) {
+					http.Error(w, "reading not found", http.StatusNotFound)
+					return
+				}
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.WriteHeader(http.StatusNoContent)
+		})
+
+		r.Get("/elo/target", func(w http.ResponseWriter, r *http.Request) {
+			val, err := habitService.GetSetting(r.Context(), "elo_target")
+			target := 800
+			if err == nil {
+				if n, parseErr := strconv.Atoi(val); parseErr == nil {
+					target = n
+				}
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]int{"target": target})
+		})
+
+		r.Patch("/elo/target", func(w http.ResponseWriter, r *http.Request) {
+			var req struct {
+				Target int `json:"target"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			if req.Target <= 0 {
+				http.Error(w, "target must be greater than 0", http.StatusBadRequest)
+				return
+			}
+			if err := habitService.SetSetting(r.Context(), "elo_target", strconv.Itoa(req.Target)); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]int{"target": req.Target})
 		})
 
 		r.Post("/check-in", func(w http.ResponseWriter, r *http.Request) {
