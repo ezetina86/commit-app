@@ -99,6 +99,13 @@ export function BloodPressureSection({ readings, onAdd, onDelete }: BloodPressur
   // Chart data is chronological (oldest first for left-to-right rendering)
   const chartData = [...readings].reverse();
 
+  const avgSystolic = readings.length > 0
+    ? Math.round(readings.reduce((sum, r) => sum + r.systolic, 0) / readings.length)
+    : null;
+  const avgDiastolic = readings.length > 0
+    ? Math.round(readings.reduce((sum, r) => sum + r.diastolic, 0) / readings.length)
+    : null;
+
   return (
     <section aria-label="Blood Pressure" className="w-full bg-surface p-6 rounded-sm border border-white/5">
       {/* Delete confirmation modal */}
@@ -127,6 +134,17 @@ export function BloodPressureSection({ readings, onAdd, onDelete }: BloodPressur
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {avgSystolic !== null && avgDiastolic !== null && (
+        <div className="flex items-baseline gap-3 mb-3" aria-label="Average blood pressure">
+          <span className="text-text-secondary text-xs font-mono uppercase tracking-widest">Avg</span>
+          <span className="text-3xl font-bold font-mono text-accent-4">{avgSystolic}</span>
+          <span className="text-text-secondary text-lg font-mono">/</span>
+          <span className="text-3xl font-bold font-mono text-accent-3">{avgDiastolic}</span>
+          <span className="text-text-secondary text-xs font-mono">mmHg</span>
+          <span className="text-text-secondary text-xs font-mono ml-1">({readings.length} readings)</span>
         </div>
       )}
 
