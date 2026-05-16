@@ -137,6 +137,10 @@ export function BloodPressureSection({ readings, onAdd, onDelete }: BloodPressur
         </div>
       )}
 
+      <h2 className="text-xl font-bold uppercase tracking-tight mb-4">
+        <span className="text-accent-3 mr-2 select-none" aria-hidden="true">&gt;</span>Blood Pressure
+      </h2>
+
       {avgSystolic !== null && avgDiastolic !== null && (
         <div className="flex items-baseline gap-3 mb-3" aria-label="Average blood pressure">
           <span className="text-text-secondary text-xs font-mono uppercase tracking-widest">Avg</span>
@@ -147,10 +151,6 @@ export function BloodPressureSection({ readings, onAdd, onDelete }: BloodPressur
           <span className="text-text-secondary text-xs font-mono ml-1">({readings.length} readings)</span>
         </div>
       )}
-
-      <h2 className="text-xl font-bold uppercase tracking-tight mb-4">
-        <span className="text-accent-3 mr-2 select-none" aria-hidden="true">&gt;</span>Blood Pressure
-      </h2>
 
       {/* Add form */}
       <form onSubmit={handleSubmit} className="flex flex-wrap gap-2 mb-2" aria-label="Log blood pressure reading">
