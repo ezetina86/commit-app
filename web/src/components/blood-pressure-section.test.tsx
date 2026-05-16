@@ -81,6 +81,25 @@ describe('BloodPressureSection', () => {
     expect(screen.queryByText('120/80')).not.toBeInTheDocument();
   });
 
+  it('shows avg blood pressure before title when readings exist', () => {
+    const readings = [
+      makeReading({ id: 'r1', systolic: 120, diastolic: 80 }),
+      makeReading({ id: 'r2', systolic: 130, diastolic: 90 }),
+    ];
+    render(<BloodPressureSection readings={readings} onAdd={onAdd} onDelete={onDelete} />);
+    const avgEl = screen.getByLabelText('Average blood pressure');
+    expect(avgEl).toBeInTheDocument();
+    expect(avgEl.textContent).toContain('125');
+    expect(avgEl.textContent).toContain('85');
+    expect(avgEl.textContent).toContain('mmHg');
+    expect(avgEl.textContent).toContain('2 readings');
+  });
+
+  it('hides avg when no readings', () => {
+    render(<BloodPressureSection readings={[]} onAdd={onAdd} onDelete={onDelete} />);
+    expect(screen.queryByLabelText('Average blood pressure')).not.toBeInTheDocument();
+  });
+
   it('does not render chart when no readings', () => {
     render(<BloodPressureSection readings={[]} onAdd={onAdd} onDelete={onDelete} />);
     expect(screen.queryByLabelText('Blood pressure trend chart')).not.toBeInTheDocument();
