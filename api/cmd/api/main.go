@@ -374,6 +374,94 @@ func main() {
 			json.NewEncoder(w).Encode(map[string]int{"target": req.Target})
 		})
 
+		r.Post("/steps", func(w http.ResponseWriter, r *http.Request) {
+			var req struct {
+				Steps      int    `json:"steps"`
+				Notes      string `json:"notes"`
+				RecordedAt string `json:"recorded_at"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			if req.Steps <= 0 {
+				http.Error(w, "steps must be greater than 0", http.StatusBadRequest)
+				return
+			}
+			recordedAt := time.Now().UTC()
+			if req.RecordedAt != "" {
+				parsed, err := time.Parse(time.RFC3339, req.RecordedAt)
+				if err != nil {
+					http.Error(w, "invalid recorded_at format, use RFC3339", http.StatusBadRequest)
+					return
+				}
+				recordedAt = parsed.UTC()
+			}
+			reading, err := habitService.CreateStepsReading(r.Context(), req.Steps, req.Notes, recordedAt)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusCreated)
+			json.NewEncoder(w).Encode(reading)
+		})
+
+		r.Get("/steps", func(w http.ResponseWriter, r *http.Request) {
+			readings, err := habitService.ListStepsReadings(r.Context())
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(readings)
+		})
+
+		r.Delete("/steps/{id}", func(w http.ResponseWriter, r *http.Request) {
+			id := chi.URLParam(r, "id")
+			if err := habitService.DeleteStepsReading(r.Context(), id); err != nil {
+				if errors.Is(err, repository.ErrNotFound) {
+					http.Error(w, "reading not found", http.StatusNotFound)
+					return
+				}
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.WriteHeader(http.StatusNoContent)
+		})
+
+		r.Get("/steps/target", func(w http.ResponseWriter, r *http.Request) {
+			val, err := habitService.GetSetting(r.Context(), "steps_target")
+			target := 15000
+			if err == nil {
+				if n, parseErr := strconv.Atoi(val); parseErr == nil {
+					target = n
+				}
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]int{"target": target})
+		})
+
+		r.Patch("/steps/target", func(w http.ResponseWriter, r *http.Request) {
+			var req struct {
+				Target int `json:"target"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			if req.Target <= 0 {
+				http.Error(w, "target must be greater than 0", http.StatusBadRequest)
+				return
+			}
+			if err := habitService.SetSetting(r.Context(), "steps_target", strconv.Itoa(req.Target)); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]int{"target": req.Target})
+		})
+
 		r.Post("/check-in", func(w http.ResponseWriter, r *http.Request) {
 			var req struct {
 				HabitID string `json:"habit_id"`

@@ -23,6 +23,9 @@ type HabitRepository interface {
 	CreateEloReading(ctx context.Context, platform string, rating int, notes string, recordedAt time.Time) (*models.EloReading, error)
 	ListEloReadings(ctx context.Context) ([]*models.EloReading, error)
 	DeleteEloReading(ctx context.Context, id string) error
+	CreateStepsReading(ctx context.Context, steps int, notes string, recordedAt time.Time) (*models.StepsReading, error)
+	ListStepsReadings(ctx context.Context) ([]*models.StepsReading, error)
+	DeleteStepsReading(ctx context.Context, id string) error
 	GetSetting(ctx context.Context, key string) (string, error)
 	SetSetting(ctx context.Context, key, value string) error
 }
@@ -204,6 +207,18 @@ func (s *HabitService) ListEloReadings(ctx context.Context) ([]*models.EloReadin
 
 func (s *HabitService) DeleteEloReading(ctx context.Context, id string) error {
 	return s.repo.DeleteEloReading(ctx, id)
+}
+
+func (s *HabitService) CreateStepsReading(ctx context.Context, steps int, notes string, recordedAt time.Time) (*models.StepsReading, error) {
+	return s.repo.CreateStepsReading(ctx, steps, notes, recordedAt)
+}
+
+func (s *HabitService) ListStepsReadings(ctx context.Context) ([]*models.StepsReading, error) {
+	return s.repo.ListStepsReadings(ctx)
+}
+
+func (s *HabitService) DeleteStepsReading(ctx context.Context, id string) error {
+	return s.repo.DeleteStepsReading(ctx, id)
 }
 
 func (s *HabitService) GetSetting(ctx context.Context, key string) (string, error) {

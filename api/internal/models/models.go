@@ -25,6 +25,13 @@ type EloReading struct {
 	RecordedAt time.Time `json:"recorded_at"`
 }
 
+type StepsReading struct {
+	ID         string    `json:"id"`
+	Steps      int       `json:"steps"`
+	Notes      string    `json:"notes"`
+	RecordedAt time.Time `json:"recorded_at"`
+}
+
 type Habit struct {
 	ID             string           `json:"id"`
 	Name           string           `json:"name"`
