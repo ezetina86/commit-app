@@ -177,11 +177,11 @@ function App() {
     setToast({ message: `ELO target updated to ${newTarget}`, visible: true });
   };
 
-  const handleAddSteps = async (steps: number, notes: string) => {
+  const handleAddSteps = async (steps: number, notes: string, date: string) => {
     await fetch('/api/steps', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ steps, notes }),
+      body: JSON.stringify({ steps, notes, recorded_at: `${date}T12:00:00Z` }),
     });
     fetchStepsData();
     setToast({ message: 'Steps saved', visible: true });

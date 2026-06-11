@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
-  BarChart,
-  Bar,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -12,7 +12,6 @@ import {
 } from 'recharts';
 
 const TOKEN_ACCENT_4 = '#39D353';
-const TOKEN_ACCENT_2 = '#006D32';
 const TOKEN_TEXT_SECONDARY = '#7D8590';
 const TOKEN_CHART_GRID = '#ffffff0d';
 
@@ -26,7 +25,7 @@ export interface StepsReading {
 interface StepsSectionProps {
   readings: StepsReading[];
   target: number;
-  onAdd: (steps: number, notes: string) => Promise<void>;
+  onAdd: (steps: number, notes: string, date: string) => Promise<void>;
   onDelete: (id: string) => void;
   onTargetChange: (target: number) => void;
 }
@@ -69,6 +68,7 @@ function StepsTooltip({ active, payload }: TooltipProps<number, string>) {
 export function StepsSection({ readings, target, onAdd, onDelete, onTargetChange }: StepsSectionProps) {
   const [steps, setSteps] = useState<number | ''>('');
   const [notes, setNotes] = useState('');
+  const [date, setDate] = useState(new Intl.DateTimeFormat('en-CA').format(new Date()));
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -85,7 +85,7 @@ export function StepsSection({ readings, target, onAdd, onDelete, onTargetChange
     setFormError('');
     setSubmitting(true);
     try {
-      await onAdd(Number(steps), notes);
+      await onAdd(Number(steps), notes, date);
       setSteps('');
       setNotes('');
     } finally {
@@ -194,6 +194,14 @@ export function StepsSection({ readings, target, onAdd, onDelete, onTargetChange
           className="w-32 bg-background border-none text-text-primary px-3 py-2 rounded-sm text-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none placeholder:text-text-secondary/50"
         />
         <input
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          aria-label="Date"
+          name="steps-date"
+          className="bg-background border-none text-text-primary px-3 py-2 rounded-sm text-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none"
+        />
+        <input
           type="text"
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
@@ -218,7 +226,7 @@ export function StepsSection({ readings, target, onAdd, onDelete, onTargetChange
       {readings.length > 0 && (
         <div className="mt-6 mb-6" aria-label="Steps trend chart">
           <ResponsiveContainer width="100%" height={180}>
-            <BarChart data={chartData} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
+            <LineChart data={chartData} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={TOKEN_CHART_GRID} />
               <XAxis
                 dataKey="recorded_at"
@@ -241,8 +249,15 @@ export function StepsSection({ readings, target, onAdd, onDelete, onTargetChange
                 strokeWidth={1}
                 label={{ value: `Target ${(target / 1000).toFixed(0)}k`, position: 'insideTopRight', fill: TOKEN_TEXT_SECONDARY, fontSize: 9, fontFamily: 'JetBrains Mono, monospace' }}
               />
-              <Bar dataKey="steps" fill={TOKEN_ACCENT_4} radius={[2, 2, 0, 0]} activeBar={{ fill: TOKEN_ACCENT_2 }} />
-            </BarChart>
+              <Line
+                type="monotone"
+                dataKey="steps"
+                stroke={TOKEN_ACCENT_4}
+                strokeWidth={2}
+                dot={{ fill: TOKEN_ACCENT_4, r: 3 }}
+                activeDot={{ r: 5 }}
+              />
+            </LineChart>
           </ResponsiveContainer>
         </div>
       )}
