@@ -6,6 +6,7 @@ import { QuoteBanner } from './components/quote-banner';
 import { Toast } from './components/toast';
 import { BloodPressureSection, type BloodPressureReading } from './components/blood-pressure-section';
 import { EloSection, type EloReading } from './components/elo-section';
+import { StepsSection, type StepsReading } from './components/steps-section';
 
 interface Habit {
   id: string;
@@ -24,6 +25,8 @@ function App() {
   const [bpReadings, setBpReadings] = useState<BloodPressureReading[]>([]);
   const [eloReadings, setEloReadings] = useState<EloReading[]>([]);
   const [eloTarget, setEloTarget] = useState(800);
+  const [stepsReadings, setStepsReadings] = useState<StepsReading[]>([]);
+  const [stepsTarget, setStepsTarget] = useState(15000);
   const [insights, setInsights] = useState<Insight[]>([]);
   const [newHabitName, setNewHabitName] = useState('');
   const [newHabitUnit, setNewHabitUnit] = useState('');
@@ -97,11 +100,27 @@ function App() {
     }
   }, []);
 
+  const fetchStepsData = useCallback(async () => {
+    try {
+      const [readingsRes, targetRes] = await Promise.all([
+        fetch('/api/steps'),
+        fetch('/api/steps/target'),
+      ]);
+      const readingsData = await readingsRes.json();
+      const targetData = await targetRes.json();
+      setStepsReadings(Array.isArray(readingsData) ? readingsData : []);
+      if (typeof targetData?.target === 'number') setStepsTarget(targetData.target);
+    } catch (err) {
+      console.error('Failed to fetch steps data:', err);
+    }
+  }, []);
+
   useEffect(() => {
     fetchHabitsAndInsights(showArchived);
     fetchBPReadings();
     fetchEloData();
-  }, [showArchived, fetchHabitsAndInsights, fetchBPReadings, fetchEloData]);
+    fetchStepsData();
+  }, [showArchived, fetchHabitsAndInsights, fetchBPReadings, fetchEloData, fetchStepsData]);
 
   const allTags = useMemo(() => {
     const tags = new Set<string>();
@@ -156,6 +175,32 @@ function App() {
     });
     setEloTarget(newTarget);
     setToast({ message: `ELO target updated to ${newTarget}`, visible: true });
+  };
+
+  const handleAddSteps = async (steps: number, notes: string) => {
+    await fetch('/api/steps', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ steps, notes }),
+    });
+    fetchStepsData();
+    setToast({ message: 'Steps saved', visible: true });
+  };
+
+  const handleDeleteSteps = (id: string) => {
+    fetch(`/api/steps/${id}`, { method: 'DELETE' }).then(() => fetchStepsData()).catch((err) => {
+      console.error('Failed to delete steps reading:', err);
+    });
+  };
+
+  const handleStepsTargetChange = async (newTarget: number) => {
+    await fetch('/api/steps/target', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target: newTarget }),
+    });
+    setStepsTarget(newTarget);
+    setToast({ message: `Steps target updated to ${newTarget.toLocaleString()}`, visible: true });
   };
 
   const parseTags = (str: string) => {
@@ -687,6 +732,15 @@ function App() {
           readings={bpReadings}
           onAdd={handleAddBP}
           onDelete={handleDeleteBP}
+        />
+
+        {/* Steps Section */}
+        <StepsSection
+          readings={stepsReadings}
+          target={stepsTarget}
+          onAdd={handleAddSteps}
+          onDelete={handleDeleteSteps}
+          onTargetChange={handleStepsTargetChange}
         />
 
         {/* Insights Panel — fixed overlay, bottom-right */}

@@ -86,6 +86,13 @@ func (r *SQLiteRepository) initSchema() error {
 			recorded_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 		);`,
 		`CREATE INDEX IF NOT EXISTS idx_elo_recorded_at ON elo_readings(recorded_at);`,
+		`CREATE TABLE IF NOT EXISTS steps_readings (
+			id          TEXT PRIMARY KEY,
+			steps       INTEGER NOT NULL,
+			notes       TEXT DEFAULT '',
+			recorded_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+		);`,
+		`CREATE INDEX IF NOT EXISTS idx_steps_recorded_at ON steps_readings(recorded_at);`,
 		`CREATE TABLE IF NOT EXISTS app_settings (
 			key   TEXT PRIMARY KEY,
 			value TEXT NOT NULL
@@ -426,6 +433,58 @@ func (r *SQLiteRepository) SetSetting(ctx context.Context, key, value string) er
 		key, value,
 	)
 	return err
+}
+
+func (r *SQLiteRepository) CreateStepsReading(ctx context.Context, steps int, notes string, recordedAt time.Time) (*models.StepsReading, error) {
+	id := uuid.New().String()
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO steps_readings (id, steps, notes, recorded_at) VALUES (?, ?, ?, ?)`,
+		id, steps, notes, recordedAt.UTC(),
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &models.StepsReading{ID: id, Steps: steps, Notes: notes, RecordedAt: recordedAt}, nil
+}
+
+func (r *SQLiteRepository) ListStepsReadings(ctx context.Context) ([]*models.StepsReading, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT id, steps, IFNULL(notes, ''), recorded_at FROM steps_readings ORDER BY recorded_at DESC`,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var readings []*models.StepsReading
+	for rows.Next() {
+		s := &models.StepsReading{}
+		if err := rows.Scan(&s.ID, &s.Steps, &s.Notes, &s.RecordedAt); err != nil {
+			return nil, err
+		}
+		readings = append(readings, s)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if readings == nil {
+		readings = []*models.StepsReading{}
+	}
+	return readings, nil
+}
+
+func (r *SQLiteRepository) DeleteStepsReading(ctx context.Context, id string) error {
+	result, err := r.db.ExecContext(ctx, `DELETE FROM steps_readings WHERE id = ?`, id)
+	if err != nil {
+		return err
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 func (r *SQLiteRepository) Close() error {
