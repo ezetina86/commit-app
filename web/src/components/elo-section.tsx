@@ -14,6 +14,7 @@ import {
 const TOKEN_GREEN          = '#39D353';
 const TOKEN_TEXT_SECONDARY = '#7D8590';
 const TOKEN_CHART_GRID     = '#ffffff0d';
+const TOKEN_ACCENT_1       = '#0E4429';
 
 export interface EloReading {
   id: string;
@@ -35,8 +36,7 @@ interface EloSectionProps {
 
 interface EloTooltipPoint {
   dateLabel: string;
-  duolingo?: number;
-  chesscom?: number;
+  rating: number;
 }
 
 function EloTooltip({ active, payload }: TooltipProps<number, string>) {
@@ -46,18 +46,10 @@ function EloTooltip({ active, payload }: TooltipProps<number, string>) {
   return (
     <div className="bg-surface border border-white/10 p-3 rounded-sm text-xs font-mono">
       <p className="text-text-secondary mb-1">{data.dateLabel}</p>
-      {data.chesscom !== undefined && (
-        <p style={{ color: TOKEN_GREEN }}>
-          <span className="inline-block w-2 h-2 mr-1" style={{ background: TOKEN_GREEN }} />
-          Chess.com: <span className="font-bold">{data.chesscom}</span>
-        </p>
-      )}
-      {data.duolingo !== undefined && (
-        <p style={{ color: TOKEN_GREEN }}>
-          <span className="inline-block w-2 h-2 mr-1 rounded-full" style={{ background: TOKEN_GREEN }} />
-          Duolingo: <span className="font-bold">{data.duolingo}</span>
-        </p>
-      )}
+      <p style={{ color: TOKEN_GREEN }}>
+        <span className="inline-block w-2 h-2 mr-1" style={{ background: TOKEN_GREEN }} />
+        <span className="font-bold">{data.rating}</span>
+      </p>
     </div>
   );
 }
@@ -82,6 +74,7 @@ const formatDateShort = (iso: string) =>
   }).format(new Date(iso));
 
 export function EloSection({ readings, target, onAdd, onDelete, onTargetChange }: EloSectionProps) {
+  const [selectedPlatform, setSelectedPlatform] = useState<'chesscom' | 'duolingo'>('chesscom');
   const [platform, setPlatform] = useState<'duolingo' | 'chesscom'>('chesscom');
   const [rating, setRating] = useState<number | ''>('');
   const [formError, setFormError] = useState('');
@@ -90,6 +83,11 @@ export function EloSection({ readings, target, onAdd, onDelete, onTargetChange }
   const [showHistory, setShowHistory] = useState(false);
   const [editingTarget, setEditingTarget] = useState(false);
   const [targetInput, setTargetInput] = useState(String(target));
+
+  const handleTabChange = (p: 'chesscom' | 'duolingo') => {
+    setSelectedPlatform(p);
+    setPlatform(p);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -118,30 +116,26 @@ export function EloSection({ readings, target, onAdd, onDelete, onTargetChange }
     setEditingTarget(false);
   };
 
+  const visibleReadings = useMemo(
+    () => readings.filter((r) => r.platform === selectedPlatform),
+    [readings, selectedPlatform],
+  );
+
   const chartData = useMemo(() => {
-    return [...readings]
+    return visibleReadings
+      .slice()
       .sort((a, b) => a.recorded_at.localeCompare(b.recorded_at))
       .map((r) => ({
         recorded_at: r.recorded_at,
         dateLabel: formatDate(r.recorded_at),
-        duolingo: r.platform === 'duolingo' ? r.rating : undefined,
-        chesscom: r.platform === 'chesscom' ? r.rating : undefined,
+        rating: r.rating,
       }));
-  }, [readings]);
+  }, [visibleReadings]);
 
-  /* v8 ignore start */
-  const chessDot = (props: Record<string, unknown>) => {
-    const { cx, cy, index } = props as { cx: number; cy: number; index: number };
-    if (isNaN(cx) || isNaN(cy)) return <g key={`chess-skip-${index}`} />;
-    return <rect key={`chess-dot-${index}`} x={cx - 3.5} y={cy - 3.5} width={7} height={7} fill={TOKEN_GREEN} />;
-  };
-
-  const duoDot = (props: Record<string, unknown>) => {
-    const { cx, cy, index } = props as { cx: number; cy: number; index: number };
-    if (isNaN(cx) || isNaN(cy)) return <g key={`duo-skip-${index}`} />;
-    return <circle key={`duo-dot-${index}`} cx={cx} cy={cy} r={3.5} fill={TOKEN_GREEN} />;
-  };
-  /* v8 ignore stop */
+  const maxRating = useMemo(() => {
+    if (visibleReadings.length === 0) return 0;
+    return Math.max(...visibleReadings.map((r) => r.rating));
+  }, [visibleReadings]);
 
   return (
     <section aria-label="Chess ELO Rating" className="w-full bg-surface p-6 rounded-sm border border-white/5">
@@ -203,6 +197,25 @@ export function EloSection({ readings, target, onAdd, onDelete, onTargetChange }
         </div>
       </div>
 
+      <div className="flex gap-1 mb-4" role="tablist" aria-label="Platform">
+        {(['chesscom', 'duolingo'] as const).map((p) => (
+          <button
+            key={p}
+            role="tab"
+            aria-selected={selectedPlatform === p}
+            onClick={() => handleTabChange(p)}
+            className="px-3 py-1 text-xs font-mono uppercase tracking-wider rounded-sm border transition-colors cursor-pointer"
+            style={
+              selectedPlatform === p
+                ? { color: TOKEN_GREEN, background: TOKEN_ACCENT_1, borderColor: TOKEN_GREEN + '66' }
+                : { color: TOKEN_TEXT_SECONDARY, background: 'transparent', borderColor: 'rgba(255,255,255,0.08)' }
+            }
+          >
+            {p === 'chesscom' ? 'Chess.com' : 'Duolingo'}
+          </button>
+        ))}
+      </div>
+
       <form onSubmit={handleSubmit} className="flex flex-wrap gap-2 mb-2" aria-label="Log ELO rating">
         <select
           value={platform}
@@ -234,18 +247,8 @@ export function EloSection({ readings, target, onAdd, onDelete, onTargetChange }
         <p role="alert" className="text-red-400 text-xs font-mono mb-4 pl-1">{formError}</p>
       )}
 
-      {readings.length > 0 && (
+      {visibleReadings.length > 0 && (
         <div className="mt-6 mb-4" aria-label="Chess ELO trend chart">
-          <div className="flex gap-5 mb-3 text-xs font-mono items-center">
-            <span className="flex items-center gap-1.5">
-              <svg width="8" height="8" aria-hidden="true"><rect width="8" height="8" fill={TOKEN_GREEN} /></svg>
-              <span className="text-text-secondary">Chess.com</span>
-            </span>
-            <span className="flex items-center gap-1.5">
-              <svg width="8" height="8" aria-hidden="true"><circle cx="4" cy="4" r="4" fill={TOKEN_GREEN} /></svg>
-              <span className="text-text-secondary">Duolingo</span>
-            </span>
-          </div>
           <ResponsiveContainer width="100%" height={200}>
             <LineChart data={chartData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={TOKEN_CHART_GRID} />
@@ -260,7 +263,7 @@ export function EloSection({ readings, target, onAdd, onDelete, onTargetChange }
                 /* v8 ignore next */
                 domain={([dataMin, dataMax]: [number, number]) => [
                   Math.max(0, Math.min(dataMin, target) - 50),
-                  Math.max(dataMax, target) + 50,
+                  Math.max(dataMax, target, maxRating) + 50,
                 ]}
                 tick={{ fill: TOKEN_TEXT_SECONDARY, fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }}
                 axisLine={false}
@@ -274,32 +277,29 @@ export function EloSection({ readings, target, onAdd, onDelete, onTargetChange }
                 strokeWidth={1}
                 label={{ value: `Target ${target}`, position: 'insideTopRight', fill: TOKEN_TEXT_SECONDARY, fontSize: 9, fontFamily: 'JetBrains Mono, monospace' }}
               />
+              {maxRating > 0 && maxRating !== target && (
+                <ReferenceLine
+                  y={maxRating}
+                  stroke={TOKEN_TEXT_SECONDARY}
+                  strokeDasharray="2 4"
+                  strokeWidth={1}
+                  label={{ value: `Max ${maxRating}`, position: 'insideBottomRight', fill: TOKEN_TEXT_SECONDARY, fontSize: 9, fontFamily: 'JetBrains Mono, monospace' }}
+                />
+              )}
               <Line
                 type="monotone"
-                dataKey="chesscom"
-                name="Chess.com"
+                dataKey="rating"
                 stroke={TOKEN_GREEN}
                 strokeWidth={2}
-                dot={chessDot as never}
+                dot={{ r: 3, fill: TOKEN_GREEN }}
                 activeDot={{ r: 5 }}
-                connectNulls
-              />
-              <Line
-                type="monotone"
-                dataKey="duolingo"
-                name="Duolingo"
-                stroke={TOKEN_GREEN}
-                strokeWidth={2}
-                dot={duoDot as never}
-                activeDot={{ r: 5 }}
-                connectNulls
               />
             </LineChart>
           </ResponsiveContainer>
         </div>
       )}
 
-      {readings.length === 0 ? (
+      {visibleReadings.length === 0 ? (
         <p className="text-text-secondary text-xs uppercase tracking-widest py-4">No Ratings Logged</p>
       ) : (
         <div className="mt-2">
@@ -310,7 +310,7 @@ export function EloSection({ readings, target, onAdd, onDelete, onTargetChange }
             aria-controls="elo-history-list"
             className="text-xs font-mono text-text-secondary hover:text-text-primary uppercase tracking-widest cursor-pointer transition-colors mb-2"
           >
-            {showHistory ? '[hide history]' : `[show history (${readings.length})]`}
+            {showHistory ? '[hide history]' : `[show history (${visibleReadings.length})]`}
           </button>
           {showHistory && (
             <div
@@ -319,7 +319,7 @@ export function EloSection({ readings, target, onAdd, onDelete, onTargetChange }
               role="list"
               aria-label="ELO readings"
             >
-              {readings.map((r) => (
+              {visibleReadings.map((r) => (
                 <div
                   key={r.id}
                   role="listitem"
