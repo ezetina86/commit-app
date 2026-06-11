@@ -66,7 +66,8 @@ describe('EloSection', () => {
     render(<EloSection readings={readings} target={800} onAdd={onAdd} onDelete={onDelete} onTargetChange={onTargetChange} />);
     await user.click(screen.getByRole('button', { name: /show history/i }));
     expect(screen.getByText('720')).toBeInTheDocument();
-    expect(screen.getByText('650')).toBeInTheDocument();
+    // duolingo reading is filtered out on chess.com tab
+    expect(screen.queryByText('650')).not.toBeInTheDocument();
   });
 
   it('hides readings after toggling history off', async () => {
@@ -160,5 +161,56 @@ describe('EloSection', () => {
     await user.click(screen.getByRole('button', { name: /delete elo reading/i }));
     await user.click(screen.getByRole('button', { name: /^cancel$/i }));
     expect(onDelete).not.toHaveBeenCalled();
+  });
+
+  it('renders platform tabs for chess.com and duolingo', () => {
+    render(<EloSection readings={[]} target={800} onAdd={onAdd} onDelete={onDelete} onTargetChange={onTargetChange} />);
+    expect(screen.getByRole('tab', { name: /chess\.com/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /duolingo/i })).toBeInTheDocument();
+  });
+
+  it('chess.com tab is selected by default', () => {
+    render(<EloSection readings={[]} target={800} onAdd={onAdd} onDelete={onDelete} onTargetChange={onTargetChange} />);
+    expect(screen.getByRole('tab', { name: /chess\.com/i })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: /duolingo/i })).toHaveAttribute('aria-selected', 'false');
+  });
+
+  it('switching to duolingo tab shows only duolingo readings in history', async () => {
+    const user = userEvent.setup();
+    const readings = [
+      makeReading({ id: 'e1', platform: 'chesscom', rating: 720 }),
+      makeReading({ id: 'e2', platform: 'duolingo', rating: 650 }),
+    ];
+    render(<EloSection readings={readings} target={800} onAdd={onAdd} onDelete={onDelete} onTargetChange={onTargetChange} />);
+    await user.click(screen.getByRole('tab', { name: /duolingo/i }));
+    await user.click(screen.getByRole('button', { name: /show history/i }));
+    expect(screen.getByText('650')).toBeInTheDocument();
+    expect(screen.queryByText('720')).not.toBeInTheDocument();
+  });
+
+  it('switching tab pre-selects form platform', async () => {
+    const user = userEvent.setup();
+    render(<EloSection readings={[]} target={800} onAdd={onAdd} onDelete={onDelete} onTargetChange={onTargetChange} />);
+    await user.click(screen.getByRole('tab', { name: /duolingo/i }));
+    expect(screen.getByRole('combobox', { name: /platform/i })).toHaveValue('duolingo');
+  });
+
+  it('shows empty state when selected platform has no readings', async () => {
+    const user = userEvent.setup();
+    const readings = [makeReading({ id: 'e1', platform: 'chesscom', rating: 720 })];
+    render(<EloSection readings={readings} target={800} onAdd={onAdd} onDelete={onDelete} onTargetChange={onTargetChange} />);
+    await user.click(screen.getByRole('tab', { name: /duolingo/i }));
+    expect(screen.getByText(/no ratings logged/i)).toBeInTheDocument();
+  });
+
+  it('history count reflects selected platform only', () => {
+    const readings = [
+      makeReading({ id: 'e1', platform: 'chesscom', rating: 720 }),
+      makeReading({ id: 'e2', platform: 'chesscom', rating: 730 }),
+      makeReading({ id: 'e3', platform: 'duolingo', rating: 650 }),
+    ];
+    render(<EloSection readings={readings} target={800} onAdd={onAdd} onDelete={onDelete} onTargetChange={onTargetChange} />);
+    // Default chess.com tab: 2 readings
+    expect(screen.getByRole('button', { name: /show history \(2\)/i })).toBeInTheDocument();
   });
 });
