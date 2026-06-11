@@ -127,7 +127,7 @@ describe('StepsSection', () => {
     await user.click(screen.getByRole('button', { name: /log steps/i }));
 
     await waitFor(() => {
-      expect(onAdd).toHaveBeenCalledWith(13500, 'morning walk');
+      expect(onAdd).toHaveBeenCalledWith(13500, 'morning walk', expect.any(String));
     });
   });
 
