@@ -10,9 +10,10 @@ import (
 )
 
 type mockHabitRepository struct {
-	habits      []*models.Habit
-	completions map[string][]models.CompletionData
-	bpReadings  []*models.BloodPressureReading
+	habits        []*models.Habit
+	completions   map[string][]models.CompletionData
+	bpReadings    []*models.BloodPressureReading
+	stepsReadings []*models.StepsReading
 }
 
 func (m *mockHabitRepository) CreateHabit(ctx context.Context, name string, measureUnit string, tags []string, offset int, habitType string) (*models.Habit, error) {
@@ -88,6 +89,26 @@ func (m *mockHabitRepository) ListEloReadings(ctx context.Context) ([]*models.El
 }
 func (m *mockHabitRepository) DeleteEloReading(ctx context.Context, id string) error {
 	return nil
+}
+func (m *mockHabitRepository) CreateStepsReading(ctx context.Context, steps int, notes string, recordedAt time.Time) (*models.StepsReading, error) {
+	r := &models.StepsReading{ID: "mock-steps-id", Steps: steps, Notes: notes, RecordedAt: recordedAt}
+	m.stepsReadings = append(m.stepsReadings, r)
+	return r, nil
+}
+func (m *mockHabitRepository) ListStepsReadings(ctx context.Context) ([]*models.StepsReading, error) {
+	if m.stepsReadings == nil {
+		return []*models.StepsReading{}, nil
+	}
+	return m.stepsReadings, nil
+}
+func (m *mockHabitRepository) DeleteStepsReading(ctx context.Context, id string) error {
+	for i, s := range m.stepsReadings {
+		if s.ID == id {
+			m.stepsReadings = append(m.stepsReadings[:i], m.stepsReadings[i+1:]...)
+			return nil
+		}
+	}
+	return errors.New("record not found")
 }
 func (m *mockHabitRepository) GetSetting(ctx context.Context, key string) (string, error) {
 	return "", errors.New("record not found")
