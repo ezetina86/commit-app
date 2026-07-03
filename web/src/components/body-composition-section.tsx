@@ -152,14 +152,12 @@ export function BodyCompositionSection({
       const latestC = circumLast14[circumLast14.length - 1];
       const limbShrinking = latestC.biceps < oldestC.biceps || latestC.quads < oldestC.quads;
 
-      let weightDelta7 = 0;
-      if (weightLast7.length >= 2) {
+      if (limbShrinking && weightLast7.length >= 2) {
         const ow = weightLast7[0];
         const lw = weightLast7[weightLast7.length - 1];
-        weightDelta7 = (lw.weight - ow.weight) / ow.weight * 100;
+        const weightDelta7 = (lw.weight - ow.weight) / ow.weight * 100;
+        if (weightDelta7 < -1.0) return 'protein_deficit_warning';
       }
-
-      if (limbShrinking && weightDelta7 < -1.0) return 'protein_deficit_warning';
 
       // 3. optimal
       if (
