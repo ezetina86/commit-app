@@ -7,7 +7,7 @@ import { Toast } from './components/toast';
 import { BloodPressureSection, type BloodPressureReading } from './components/blood-pressure-section';
 import { EloSection, type EloReading } from './components/elo-section';
 import { StepsSection, type StepsReading } from './components/steps-section';
-import { BodyCompositionSection, WeightReading, CircumferenceReading } from './components/body-composition-section';
+import { BodyCompositionSection, type WeightReading, type CircumferenceReading } from './components/body-composition-section';
 
 interface Habit {
   id: string;
