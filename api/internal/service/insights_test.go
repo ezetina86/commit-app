@@ -110,6 +110,24 @@ func (m *mockHabitRepository) DeleteStepsReading(ctx context.Context, id string)
 	}
 	return errors.New("record not found")
 }
+func (m *mockHabitRepository) CreateWeightReading(ctx context.Context, weight float64, notes string, recordedAt time.Time) (*models.WeightReading, error) {
+	return &models.WeightReading{ID: "mock-weight-id", Weight: weight, Notes: notes, RecordedAt: recordedAt}, nil
+}
+func (m *mockHabitRepository) ListWeightReadings(ctx context.Context) ([]*models.WeightReading, error) {
+	return []*models.WeightReading{}, nil
+}
+func (m *mockHabitRepository) DeleteWeightReading(ctx context.Context, id string) error {
+	return nil
+}
+func (m *mockHabitRepository) CreateCircumferenceReading(ctx context.Context, abdomen, biceps, quads float64, notes string, recordedAt time.Time) (*models.CircumferenceReading, error) {
+	return &models.CircumferenceReading{ID: "mock-circ-id", Abdomen: abdomen, Biceps: biceps, Quads: quads, Notes: notes, RecordedAt: recordedAt}, nil
+}
+func (m *mockHabitRepository) ListCircumferenceReadings(ctx context.Context) ([]*models.CircumferenceReading, error) {
+	return []*models.CircumferenceReading{}, nil
+}
+func (m *mockHabitRepository) DeleteCircumferenceReading(ctx context.Context, id string) error {
+	return nil
+}
 func (m *mockHabitRepository) GetSetting(ctx context.Context, key string) (string, error) {
 	return "", errors.New("record not found")
 }
