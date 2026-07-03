@@ -7,6 +7,7 @@ import { Toast } from './components/toast';
 import { BloodPressureSection, type BloodPressureReading } from './components/blood-pressure-section';
 import { EloSection, type EloReading } from './components/elo-section';
 import { StepsSection, type StepsReading } from './components/steps-section';
+import { BodyCompositionSection, WeightReading, CircumferenceReading } from './components/body-composition-section';
 
 interface Habit {
   id: string;
@@ -27,6 +28,8 @@ function App() {
   const [eloTarget, setEloTarget] = useState(800);
   const [stepsReadings, setStepsReadings] = useState<StepsReading[]>([]);
   const [stepsTarget, setStepsTarget] = useState(15000);
+  const [weightReadings, setWeightReadings] = useState<WeightReading[]>([]);
+  const [circumferenceReadings, setCircumferenceReadings] = useState<CircumferenceReading[]>([]);
   const [insights, setInsights] = useState<Insight[]>([]);
   const [newHabitName, setNewHabitName] = useState('');
   const [newHabitUnit, setNewHabitUnit] = useState('');
@@ -115,12 +118,26 @@ function App() {
     }
   }, []);
 
+  const fetchWeightReadings = useCallback(async () => {
+    const res = await fetch('/api/weight');
+    const data = await res.json();
+    setWeightReadings(Array.isArray(data) ? data : []);
+  }, []);
+
+  const fetchCircumferenceReadings = useCallback(async () => {
+    const res = await fetch('/api/circumference');
+    const data = await res.json();
+    setCircumferenceReadings(Array.isArray(data) ? data : []);
+  }, []);
+
   useEffect(() => {
     fetchHabitsAndInsights(showArchived);
     fetchBPReadings();
     fetchEloData();
     fetchStepsData();
-  }, [showArchived, fetchHabitsAndInsights, fetchBPReadings, fetchEloData, fetchStepsData]);
+    fetchWeightReadings();
+    fetchCircumferenceReadings();
+  }, [showArchived, fetchHabitsAndInsights, fetchBPReadings, fetchEloData, fetchStepsData, fetchWeightReadings, fetchCircumferenceReadings]);
 
   const allTags = useMemo(() => {
     const tags = new Set<string>();
@@ -191,6 +208,38 @@ function App() {
     fetch(`/api/steps/${id}`, { method: 'DELETE' }).then(() => fetchStepsData()).catch((err) => {
       console.error('Failed to delete steps reading:', err);
     });
+  };
+
+  const handleAddWeight = async (weight: number, notes: string, recordedAt: string) => {
+    await fetch('/api/weight', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ weight, notes, recorded_at: recordedAt }),
+    });
+    await fetchWeightReadings();
+    setToast({ message: 'Weight logged', visible: true });
+  };
+
+  const handleDeleteWeight = async (id: string) => {
+    await fetch(`/api/weight/${id}`, { method: 'DELETE' });
+    await fetchWeightReadings();
+    setToast({ message: 'Weight entry deleted', visible: true });
+  };
+
+  const handleAddCircumference = async (abdomen: number, biceps: number, quads: number, notes: string, recordedAt: string) => {
+    await fetch('/api/circumference', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ abdomen, biceps, quads, notes, recorded_at: recordedAt }),
+    });
+    await fetchCircumferenceReadings();
+    setToast({ message: 'Measurements logged', visible: true });
+  };
+
+  const handleDeleteCircumference = async (id: string) => {
+    await fetch(`/api/circumference/${id}`, { method: 'DELETE' });
+    await fetchCircumferenceReadings();
+    setToast({ message: 'Measurement entry deleted', visible: true });
   };
 
   const handleStepsTargetChange = async (newTarget: number) => {
@@ -741,6 +790,16 @@ function App() {
           onAdd={handleAddSteps}
           onDelete={handleDeleteSteps}
           onTargetChange={handleStepsTargetChange}
+        />
+
+        {/* Body Composition Section */}
+        <BodyCompositionSection
+          weightReadings={weightReadings}
+          circumferenceReadings={circumferenceReadings}
+          onAddWeight={handleAddWeight}
+          onDeleteWeight={handleDeleteWeight}
+          onAddCircumference={handleAddCircumference}
+          onDeleteCircumference={handleDeleteCircumference}
         />
 
         {/* Insights Panel — fixed overlay, bottom-right */}
