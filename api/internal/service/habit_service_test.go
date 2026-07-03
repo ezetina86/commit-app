@@ -204,3 +204,140 @@ func TestDeleteBPReading_NotFound(t *testing.T) {
 		t.Fatal("expected error for missing reading, got nil")
 	}
 }
+
+func TestCreateWeightReading(t *testing.T) {
+	repo := &mockHabitRepository{}
+	svc := NewHabitService(repo)
+
+	now := time.Now().UTC()
+	r, err := svc.CreateWeightReading(context.Background(), 185.5, "morning", now)
+	if err != nil {
+		t.Fatalf("CreateWeightReading failed: %v", err)
+	}
+	if r == nil {
+		t.Fatal("CreateWeightReading returned nil")
+	}
+	if r.Weight != 185.5 {
+		t.Errorf("expected weight 185.5, got %v", r.Weight)
+	}
+	if r.Notes != "morning" {
+		t.Errorf("expected notes 'morning', got %q", r.Notes)
+	}
+}
+
+func TestListWeightReadings(t *testing.T) {
+	now := time.Now().UTC()
+	repo := &mockHabitRepository{
+		weightReadings: []*models.WeightReading{
+			{ID: "w1", Weight: 185.5, RecordedAt: now},
+			{ID: "w2", Weight: 184.0, RecordedAt: now.Add(-24 * time.Hour)},
+		},
+	}
+	svc := NewHabitService(repo)
+
+	readings, err := svc.ListWeightReadings(context.Background())
+	if err != nil {
+		t.Fatalf("ListWeightReadings failed: %v", err)
+	}
+	if len(readings) != 2 {
+		t.Errorf("expected 2 readings, got %d", len(readings))
+	}
+}
+
+func TestDeleteWeightReading_Exists(t *testing.T) {
+	now := time.Now().UTC()
+	repo := &mockHabitRepository{
+		weightReadings: []*models.WeightReading{
+			{ID: "w-1", Weight: 185.5, RecordedAt: now},
+		},
+	}
+	svc := NewHabitService(repo)
+
+	if err := svc.DeleteWeightReading(context.Background(), "w-1"); err != nil {
+		t.Fatalf("DeleteWeightReading failed: %v", err)
+	}
+	readings, _ := svc.ListWeightReadings(context.Background())
+	if len(readings) != 0 {
+		t.Errorf("expected 0 readings after delete, got %d", len(readings))
+	}
+}
+
+func TestDeleteWeightReading_NotFound(t *testing.T) {
+	repo := &mockHabitRepository{}
+	svc := NewHabitService(repo)
+
+	err := svc.DeleteWeightReading(context.Background(), "nonexistent")
+	if err == nil {
+		t.Fatal("expected error for missing reading, got nil")
+	}
+}
+
+func TestCreateCircumferenceReading(t *testing.T) {
+	repo := &mockHabitRepository{}
+	svc := NewHabitService(repo)
+
+	now := time.Now().UTC()
+	r, err := svc.CreateCircumferenceReading(context.Background(), 36.5, 14.0, 22.0, "post-workout", now)
+	if err != nil {
+		t.Fatalf("CreateCircumferenceReading failed: %v", err)
+	}
+	if r == nil {
+		t.Fatal("CreateCircumferenceReading returned nil")
+	}
+	if r.Abdomen != 36.5 {
+		t.Errorf("expected abdomen 36.5, got %v", r.Abdomen)
+	}
+	if r.Biceps != 14.0 {
+		t.Errorf("expected biceps 14.0, got %v", r.Biceps)
+	}
+	if r.Quads != 22.0 {
+		t.Errorf("expected quads 22.0, got %v", r.Quads)
+	}
+}
+
+func TestListCircumferenceReadings(t *testing.T) {
+	now := time.Now().UTC()
+	repo := &mockHabitRepository{
+		circumferenceReadings: []*models.CircumferenceReading{
+			{ID: "c1", Abdomen: 36.5, Biceps: 14.0, Quads: 22.0, RecordedAt: now},
+			{ID: "c2", Abdomen: 35.0, Biceps: 14.2, Quads: 22.5, RecordedAt: now.Add(-24 * time.Hour)},
+		},
+	}
+	svc := NewHabitService(repo)
+
+	readings, err := svc.ListCircumferenceReadings(context.Background())
+	if err != nil {
+		t.Fatalf("ListCircumferenceReadings failed: %v", err)
+	}
+	if len(readings) != 2 {
+		t.Errorf("expected 2 readings, got %d", len(readings))
+	}
+}
+
+func TestDeleteCircumferenceReading_Exists(t *testing.T) {
+	now := time.Now().UTC()
+	repo := &mockHabitRepository{
+		circumferenceReadings: []*models.CircumferenceReading{
+			{ID: "c-1", Abdomen: 36.5, Biceps: 14.0, Quads: 22.0, RecordedAt: now},
+		},
+	}
+	svc := NewHabitService(repo)
+
+	if err := svc.DeleteCircumferenceReading(context.Background(), "c-1"); err != nil {
+		t.Fatalf("DeleteCircumferenceReading failed: %v", err)
+	}
+	readings, _ := svc.ListCircumferenceReadings(context.Background())
+	if len(readings) != 0 {
+		t.Errorf("expected 0 readings after delete, got %d", len(readings))
+	}
+}
+
+func TestDeleteCircumferenceReading_NotFound(t *testing.T) {
+	repo := &mockHabitRepository{}
+	svc := NewHabitService(repo)
+
+	err := svc.DeleteCircumferenceReading(context.Background(), "nonexistent")
+	if err == nil {
+		t.Fatal("expected error for missing reading, got nil")
+	}
+}
