@@ -94,9 +94,9 @@ function CircumferenceTooltip({ active, payload }: TooltipProps<number, string>)
   return (
     <div className="bg-surface border border-white/10 p-3 rounded-sm text-xs font-mono">
       <p className="text-text-secondary mb-1">{formatCentral(data.recorded_at)}</p>
-      <p style={{ color: ABDOMEN_COLOR }}>Abdomen: <span className="font-bold">{data.abdomen} in</span></p>
-      <p style={{ color: BICEPS_COLOR }}>Biceps: <span className="font-bold">{data.biceps} in</span></p>
-      <p style={{ color: QUADS_COLOR }}>Quads: <span className="font-bold">{data.quads} in</span></p>
+      <p style={{ color: ABDOMEN_COLOR }}>Abdomen: <span className="font-bold">{data.abdomen} cm</span></p>
+      <p style={{ color: BICEPS_COLOR }}>Biceps: <span className="font-bold">{data.biceps} cm</span></p>
+      <p style={{ color: QUADS_COLOR }}>Quads: <span className="font-bold">{data.quads} cm</span></p>
       {data.notes && <p className="text-text-secondary mt-1 max-w-[160px] whitespace-normal">{data.notes}</p>}
     </div>
   );
@@ -425,7 +425,7 @@ export function BodyCompositionSection({
             type="number"
             value={circumferenceForm.abdomen}
             onChange={(e) => { setCircumferenceForm(f => ({ ...f, abdomen: e.target.value })); if (e.target.value) setCircumferenceFormError(''); }}
-            placeholder="Abdomen (in)"
+            placeholder="Abdomen (cm)"
             aria-label="Abdomen"
             name="circ-abdomen"
             step="0.1"
@@ -435,7 +435,7 @@ export function BodyCompositionSection({
             type="number"
             value={circumferenceForm.biceps}
             onChange={(e) => { setCircumferenceForm(f => ({ ...f, biceps: e.target.value })); if (e.target.value) setCircumferenceFormError(''); }}
-            placeholder="Biceps (in)"
+            placeholder="Biceps (cm)"
             aria-label="Biceps"
             name="circ-biceps"
             step="0.1"
@@ -445,7 +445,7 @@ export function BodyCompositionSection({
             type="number"
             value={circumferenceForm.quads}
             onChange={(e) => { setCircumferenceForm(f => ({ ...f, quads: e.target.value })); if (e.target.value) setCircumferenceFormError(''); }}
-            placeholder="Quads (in)"
+            placeholder="Quads (cm)"
             aria-label="Quads"
             name="circ-quads"
             step="0.1"
@@ -556,7 +556,7 @@ export function BodyCompositionSection({
                       <span style={{ color: BICEPS_COLOR }}>{r.biceps}</span>
                       <span className="text-text-secondary mx-1">/</span>
                       <span style={{ color: QUADS_COLOR }}>{r.quads}</span>
-                      <span className="text-text-secondary text-xs ml-1">in</span>
+                      <span className="text-text-secondary text-xs ml-1">cm</span>
                     </span>
                     {r.notes && <span className="text-text-secondary text-xs font-mono truncate flex-1">{r.notes}</span>}
                     {!r.notes && <span className="flex-1" />}
