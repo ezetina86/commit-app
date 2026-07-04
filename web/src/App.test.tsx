@@ -459,3 +459,39 @@ describe('App — Boolean habit check-in', () => {
     });
   });
 });
+
+describe('App — Body Composition handlers send RFC3339 recorded_at', () => {
+  it('sends weight recorded_at in RFC3339 format', async () => {
+    render(<App />);
+    await waitFor(() => expect(screen.getByLabelText('Weight')).toBeInTheDocument());
+
+    fireEvent.change(screen.getByLabelText('Weight'), { target: { value: '185.5' } });
+    fireEvent.submit(screen.getByRole('form', { name: /log weight/i }));
+
+    await waitFor(() => {
+      const calls = (fetch as Mock).mock.calls;
+      const weightPost = calls.find((c: unknown[]) => c[0] === '/api/weight' && (c[1] as RequestInit)?.method === 'POST');
+      expect(weightPost).toBeTruthy();
+      const body = JSON.parse((weightPost![1] as RequestInit).body as string);
+      expect(body.recorded_at).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
+    });
+  });
+
+  it('sends circumference recorded_at in RFC3339 format', async () => {
+    render(<App />);
+    await waitFor(() => expect(screen.getByLabelText('Abdomen')).toBeInTheDocument());
+
+    fireEvent.change(screen.getByLabelText('Abdomen'), { target: { value: '36.5' } });
+    fireEvent.change(screen.getByLabelText('Biceps'), { target: { value: '14.0' } });
+    fireEvent.change(screen.getByLabelText('Quads'), { target: { value: '22.0' } });
+    fireEvent.submit(screen.getByRole('form', { name: /log circumference/i }));
+
+    await waitFor(() => {
+      const calls = (fetch as Mock).mock.calls;
+      const circPost = calls.find((c: unknown[]) => c[0] === '/api/circumference' && (c[1] as RequestInit)?.method === 'POST');
+      expect(circPost).toBeTruthy();
+      const body = JSON.parse((circPost![1] as RequestInit).body as string);
+      expect(body.recorded_at).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
+    });
+  });
+});
