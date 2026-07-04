@@ -214,7 +214,7 @@ function App() {
     const res = await fetch('/api/weight', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ weight, notes, recorded_at: recordedAt }),
+      body: JSON.stringify({ weight, notes, recorded_at: `${recordedAt}T12:00:00Z` }),
     });
     if (!res.ok) { console.error('Failed to log weight:', res.status); return; }
     await fetchWeightReadings();
@@ -232,7 +232,7 @@ function App() {
     const res = await fetch('/api/circumference', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ abdomen, biceps, quads, notes, recorded_at: recordedAt }),
+      body: JSON.stringify({ abdomen, biceps, quads, notes, recorded_at: `${recordedAt}T12:00:00Z` }),
     });
     if (!res.ok) { console.error('Failed to log circumference:', res.status); return; }
     await fetchCircumferenceReadings();
