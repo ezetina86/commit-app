@@ -10,12 +10,12 @@ import (
 )
 
 type mockHabitRepository struct {
-	habits                 []*models.Habit
-	completions            map[string][]models.CompletionData
-	bpReadings             []*models.BloodPressureReading
-	stepsReadings          []*models.StepsReading
-	weightReadings         []*models.WeightReading
-	circumferenceReadings  []*models.CircumferenceReading
+	habits                []*models.Habit
+	completions           map[string][]models.CompletionData
+	bpReadings            []*models.BloodPressureReading
+	stepsReadings         []*models.StepsReading
+	weightReadings        []*models.WeightReading
+	circumferenceReadings []*models.CircumferenceReading
 }
 
 func (m *mockHabitRepository) CreateHabit(ctx context.Context, name string, measureUnit string, tags []string, offset int, habitType string) (*models.Habit, error) {
