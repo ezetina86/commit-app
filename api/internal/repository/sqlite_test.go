@@ -535,3 +535,213 @@ func TestSetSetting_Upsert(t *testing.T) {
 		t.Errorf("got %q, want %q after upsert", val, "1200")
 	}
 }
+
+// ── Steps ─────────────────────────────────────────────────────────────────────
+
+func TestCreateAndListStepsReadings(t *testing.T) {
+	repo := newTestRepo(t)
+	ctx := context.Background()
+	now := time.Now().UTC()
+
+	r, err := repo.CreateStepsReading(ctx, 12000, "morning walk", now)
+	if err != nil {
+		t.Fatalf("CreateStepsReading: %v", err)
+	}
+	if r.ID == "" {
+		t.Error("expected non-empty ID")
+	}
+	if r.Steps != 12000 {
+		t.Errorf("got steps %d, want 12000", r.Steps)
+	}
+
+	list, err := repo.ListStepsReadings(ctx)
+	if err != nil {
+		t.Fatalf("ListStepsReadings: %v", err)
+	}
+	if len(list) != 1 {
+		t.Fatalf("expected 1 reading, got %d", len(list))
+	}
+	if list[0].Notes != "morning walk" {
+		t.Errorf("notes: got %q, want %q", list[0].Notes, "morning walk")
+	}
+}
+
+func TestListStepsReadings_Empty(t *testing.T) {
+	repo := newTestRepo(t)
+	ctx := context.Background()
+
+	list, err := repo.ListStepsReadings(ctx)
+	if err != nil {
+		t.Fatalf("ListStepsReadings empty: %v", err)
+	}
+	if list == nil {
+		t.Error("expected non-nil empty slice")
+	}
+}
+
+func TestDeleteStepsReading(t *testing.T) {
+	repo := newTestRepo(t)
+	ctx := context.Background()
+	now := time.Now().UTC()
+
+	r, _ := repo.CreateStepsReading(ctx, 8000, "", now)
+
+	if err := repo.DeleteStepsReading(ctx, r.ID); err != nil {
+		t.Fatalf("DeleteStepsReading: %v", err)
+	}
+
+	list, _ := repo.ListStepsReadings(ctx)
+	if len(list) != 0 {
+		t.Errorf("expected 0 readings after delete, got %d", len(list))
+	}
+}
+
+func TestDeleteStepsReading_NotFound(t *testing.T) {
+	repo := newTestRepo(t)
+	ctx := context.Background()
+
+	err := repo.DeleteStepsReading(ctx, "non-existent-id")
+	if !errors.Is(err, ErrNotFound) {
+		t.Errorf("expected ErrNotFound, got %v", err)
+	}
+}
+
+// ── Weight ────────────────────────────────────────────────────────────────────
+
+func TestCreateAndListWeightReadings(t *testing.T) {
+	repo := newTestRepo(t)
+	ctx := context.Background()
+	now := time.Now().UTC()
+
+	r, err := repo.CreateWeightReading(ctx, 185.5, "morning", now)
+	if err != nil {
+		t.Fatalf("CreateWeightReading: %v", err)
+	}
+	if r.ID == "" {
+		t.Error("expected non-empty ID")
+	}
+	if r.Weight != 185.5 {
+		t.Errorf("got weight %v, want 185.5", r.Weight)
+	}
+
+	list, err := repo.ListWeightReadings(ctx)
+	if err != nil {
+		t.Fatalf("ListWeightReadings: %v", err)
+	}
+	if len(list) != 1 {
+		t.Fatalf("expected 1 reading, got %d", len(list))
+	}
+	if list[0].Notes != "morning" {
+		t.Errorf("notes: got %q, want %q", list[0].Notes, "morning")
+	}
+}
+
+func TestListWeightReadings_Empty(t *testing.T) {
+	repo := newTestRepo(t)
+	ctx := context.Background()
+
+	list, err := repo.ListWeightReadings(ctx)
+	if err != nil {
+		t.Fatalf("ListWeightReadings empty: %v", err)
+	}
+	if list == nil {
+		t.Error("expected non-nil empty slice")
+	}
+}
+
+func TestDeleteWeightReading(t *testing.T) {
+	repo := newTestRepo(t)
+	ctx := context.Background()
+	now := time.Now().UTC()
+
+	r, _ := repo.CreateWeightReading(ctx, 190.0, "", now)
+
+	if err := repo.DeleteWeightReading(ctx, r.ID); err != nil {
+		t.Fatalf("DeleteWeightReading: %v", err)
+	}
+
+	list, _ := repo.ListWeightReadings(ctx)
+	if len(list) != 0 {
+		t.Errorf("expected 0 readings after delete, got %d", len(list))
+	}
+}
+
+func TestDeleteWeightReading_NotFound(t *testing.T) {
+	repo := newTestRepo(t)
+	ctx := context.Background()
+
+	err := repo.DeleteWeightReading(ctx, "non-existent-id")
+	if !errors.Is(err, ErrNotFound) {
+		t.Errorf("expected ErrNotFound, got %v", err)
+	}
+}
+
+// ── Circumference ─────────────────────────────────────────────────────────────
+
+func TestCreateAndListCircumferenceReadings(t *testing.T) {
+	repo := newTestRepo(t)
+	ctx := context.Background()
+	now := time.Now().UTC()
+
+	r, err := repo.CreateCircumferenceReading(ctx, 36.5, 14.0, 22.0, "post-workout", now)
+	if err != nil {
+		t.Fatalf("CreateCircumferenceReading: %v", err)
+	}
+	if r.ID == "" {
+		t.Error("expected non-empty ID")
+	}
+	if r.Abdomen != 36.5 || r.Biceps != 14.0 || r.Quads != 22.0 {
+		t.Errorf("got %v/%v/%v, want 36.5/14.0/22.0", r.Abdomen, r.Biceps, r.Quads)
+	}
+
+	list, err := repo.ListCircumferenceReadings(ctx)
+	if err != nil {
+		t.Fatalf("ListCircumferenceReadings: %v", err)
+	}
+	if len(list) != 1 {
+		t.Fatalf("expected 1 reading, got %d", len(list))
+	}
+	if list[0].Notes != "post-workout" {
+		t.Errorf("notes: got %q, want %q", list[0].Notes, "post-workout")
+	}
+}
+
+func TestListCircumferenceReadings_Empty(t *testing.T) {
+	repo := newTestRepo(t)
+	ctx := context.Background()
+
+	list, err := repo.ListCircumferenceReadings(ctx)
+	if err != nil {
+		t.Fatalf("ListCircumferenceReadings empty: %v", err)
+	}
+	if list == nil {
+		t.Error("expected non-nil empty slice")
+	}
+}
+
+func TestDeleteCircumferenceReading(t *testing.T) {
+	repo := newTestRepo(t)
+	ctx := context.Background()
+	now := time.Now().UTC()
+
+	r, _ := repo.CreateCircumferenceReading(ctx, 38.0, 13.5, 21.5, "", now)
+
+	if err := repo.DeleteCircumferenceReading(ctx, r.ID); err != nil {
+		t.Fatalf("DeleteCircumferenceReading: %v", err)
+	}
+
+	list, _ := repo.ListCircumferenceReadings(ctx)
+	if len(list) != 0 {
+		t.Errorf("expected 0 readings after delete, got %d", len(list))
+	}
+}
+
+func TestDeleteCircumferenceReading_NotFound(t *testing.T) {
+	repo := newTestRepo(t)
+	ctx := context.Background()
+
+	err := repo.DeleteCircumferenceReading(ctx, "non-existent-id")
+	if !errors.Is(err, ErrNotFound) {
+		t.Errorf("expected ErrNotFound, got %v", err)
+	}
+}

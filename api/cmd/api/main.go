@@ -462,6 +462,120 @@ func main() {
 			json.NewEncoder(w).Encode(map[string]int{"target": req.Target})
 		})
 
+		r.Post("/weight", func(w http.ResponseWriter, r *http.Request) {
+			var req struct {
+				Weight     float64 `json:"weight"`
+				Notes      string  `json:"notes"`
+				RecordedAt string  `json:"recorded_at"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			if req.Weight <= 0 {
+				http.Error(w, "weight must be greater than 0", http.StatusBadRequest)
+				return
+			}
+			recordedAt := time.Now().UTC()
+			if req.RecordedAt != "" {
+				parsed, err := time.Parse(time.RFC3339, req.RecordedAt)
+				if err != nil {
+					http.Error(w, "invalid recorded_at format, use RFC3339", http.StatusBadRequest)
+					return
+				}
+				recordedAt = parsed.UTC()
+			}
+			reading, err := habitService.CreateWeightReading(r.Context(), req.Weight, req.Notes, recordedAt)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusCreated)
+			json.NewEncoder(w).Encode(reading)
+		})
+
+		r.Get("/weight", func(w http.ResponseWriter, r *http.Request) {
+			readings, err := habitService.ListWeightReadings(r.Context())
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(readings)
+		})
+
+		r.Delete("/weight/{id}", func(w http.ResponseWriter, r *http.Request) {
+			id := chi.URLParam(r, "id")
+			if err := habitService.DeleteWeightReading(r.Context(), id); err != nil {
+				if errors.Is(err, repository.ErrNotFound) {
+					http.Error(w, "reading not found", http.StatusNotFound)
+					return
+				}
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.WriteHeader(http.StatusNoContent)
+		})
+
+		r.Post("/circumference", func(w http.ResponseWriter, r *http.Request) {
+			var req struct {
+				Abdomen    float64 `json:"abdomen"`
+				Biceps     float64 `json:"biceps"`
+				Quads      float64 `json:"quads"`
+				Notes      string  `json:"notes"`
+				RecordedAt string  `json:"recorded_at"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			if req.Abdomen <= 0 || req.Biceps <= 0 || req.Quads <= 0 {
+				http.Error(w, "abdomen, biceps, and quads must be greater than 0", http.StatusBadRequest)
+				return
+			}
+			recordedAt := time.Now().UTC()
+			if req.RecordedAt != "" {
+				parsed, err := time.Parse(time.RFC3339, req.RecordedAt)
+				if err != nil {
+					http.Error(w, "invalid recorded_at format, use RFC3339", http.StatusBadRequest)
+					return
+				}
+				recordedAt = parsed.UTC()
+			}
+			reading, err := habitService.CreateCircumferenceReading(r.Context(), req.Abdomen, req.Biceps, req.Quads, req.Notes, recordedAt)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusCreated)
+			json.NewEncoder(w).Encode(reading)
+		})
+
+		r.Get("/circumference", func(w http.ResponseWriter, r *http.Request) {
+			readings, err := habitService.ListCircumferenceReadings(r.Context())
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(readings)
+		})
+
+		r.Delete("/circumference/{id}", func(w http.ResponseWriter, r *http.Request) {
+			id := chi.URLParam(r, "id")
+			if err := habitService.DeleteCircumferenceReading(r.Context(), id); err != nil {
+				if errors.Is(err, repository.ErrNotFound) {
+					http.Error(w, "reading not found", http.StatusNotFound)
+					return
+				}
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.WriteHeader(http.StatusNoContent)
+		})
+
 		r.Post("/check-in", func(w http.ResponseWriter, r *http.Request) {
 			var req struct {
 				HabitID string `json:"habit_id"`

@@ -10,10 +10,12 @@ import (
 )
 
 type mockHabitRepository struct {
-	habits        []*models.Habit
-	completions   map[string][]models.CompletionData
-	bpReadings    []*models.BloodPressureReading
-	stepsReadings []*models.StepsReading
+	habits                []*models.Habit
+	completions           map[string][]models.CompletionData
+	bpReadings            []*models.BloodPressureReading
+	stepsReadings         []*models.StepsReading
+	weightReadings        []*models.WeightReading
+	circumferenceReadings []*models.CircumferenceReading
 }
 
 func (m *mockHabitRepository) CreateHabit(ctx context.Context, name string, measureUnit string, tags []string, offset int, habitType string) (*models.Habit, error) {
@@ -105,6 +107,46 @@ func (m *mockHabitRepository) DeleteStepsReading(ctx context.Context, id string)
 	for i, s := range m.stepsReadings {
 		if s.ID == id {
 			m.stepsReadings = append(m.stepsReadings[:i], m.stepsReadings[i+1:]...)
+			return nil
+		}
+	}
+	return errors.New("record not found")
+}
+func (m *mockHabitRepository) CreateWeightReading(ctx context.Context, weight float64, notes string, recordedAt time.Time) (*models.WeightReading, error) {
+	r := &models.WeightReading{ID: "mock-weight-id", Weight: weight, Notes: notes, RecordedAt: recordedAt}
+	m.weightReadings = append(m.weightReadings, r)
+	return r, nil
+}
+func (m *mockHabitRepository) ListWeightReadings(ctx context.Context) ([]*models.WeightReading, error) {
+	if m.weightReadings == nil {
+		return []*models.WeightReading{}, nil
+	}
+	return m.weightReadings, nil
+}
+func (m *mockHabitRepository) DeleteWeightReading(ctx context.Context, id string) error {
+	for i, r := range m.weightReadings {
+		if r.ID == id {
+			m.weightReadings = append(m.weightReadings[:i], m.weightReadings[i+1:]...)
+			return nil
+		}
+	}
+	return errors.New("record not found")
+}
+func (m *mockHabitRepository) CreateCircumferenceReading(ctx context.Context, abdomen, biceps, quads float64, notes string, recordedAt time.Time) (*models.CircumferenceReading, error) {
+	r := &models.CircumferenceReading{ID: "mock-circ-id", Abdomen: abdomen, Biceps: biceps, Quads: quads, Notes: notes, RecordedAt: recordedAt}
+	m.circumferenceReadings = append(m.circumferenceReadings, r)
+	return r, nil
+}
+func (m *mockHabitRepository) ListCircumferenceReadings(ctx context.Context) ([]*models.CircumferenceReading, error) {
+	if m.circumferenceReadings == nil {
+		return []*models.CircumferenceReading{}, nil
+	}
+	return m.circumferenceReadings, nil
+}
+func (m *mockHabitRepository) DeleteCircumferenceReading(ctx context.Context, id string) error {
+	for i, r := range m.circumferenceReadings {
+		if r.ID == id {
+			m.circumferenceReadings = append(m.circumferenceReadings[:i], m.circumferenceReadings[i+1:]...)
 			return nil
 		}
 	}

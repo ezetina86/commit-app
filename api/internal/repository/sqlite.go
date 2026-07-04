@@ -93,6 +93,22 @@ func (r *SQLiteRepository) initSchema() error {
 			recorded_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 		);`,
 		`CREATE INDEX IF NOT EXISTS idx_steps_recorded_at ON steps_readings(recorded_at);`,
+		`CREATE TABLE IF NOT EXISTS weight_readings (
+			id          TEXT PRIMARY KEY,
+			weight      REAL NOT NULL,
+			notes       TEXT DEFAULT '',
+			recorded_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+		);`,
+		`CREATE INDEX IF NOT EXISTS idx_weight_recorded_at ON weight_readings(recorded_at);`,
+		`CREATE TABLE IF NOT EXISTS circumference_readings (
+			id          TEXT PRIMARY KEY,
+			abdomen     REAL NOT NULL,
+			biceps      REAL NOT NULL,
+			quads       REAL NOT NULL,
+			notes       TEXT DEFAULT '',
+			recorded_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+		);`,
+		`CREATE INDEX IF NOT EXISTS idx_circumference_recorded_at ON circumference_readings(recorded_at);`,
 		`CREATE TABLE IF NOT EXISTS app_settings (
 			key   TEXT PRIMARY KEY,
 			value TEXT NOT NULL
@@ -474,6 +490,110 @@ func (r *SQLiteRepository) ListStepsReadings(ctx context.Context) ([]*models.Ste
 
 func (r *SQLiteRepository) DeleteStepsReading(ctx context.Context, id string) error {
 	result, err := r.db.ExecContext(ctx, `DELETE FROM steps_readings WHERE id = ?`, id)
+	if err != nil {
+		return err
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func (r *SQLiteRepository) CreateWeightReading(ctx context.Context, weight float64, notes string, recordedAt time.Time) (*models.WeightReading, error) {
+	id := uuid.New().String()
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO weight_readings (id, weight, notes, recorded_at) VALUES (?, ?, ?, ?)`,
+		id, weight, notes, recordedAt.UTC(),
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &models.WeightReading{ID: id, Weight: weight, Notes: notes, RecordedAt: recordedAt}, nil
+}
+
+func (r *SQLiteRepository) ListWeightReadings(ctx context.Context) ([]*models.WeightReading, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT id, weight, IFNULL(notes, ''), recorded_at FROM weight_readings ORDER BY recorded_at DESC`,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var readings []*models.WeightReading
+	for rows.Next() {
+		w := &models.WeightReading{}
+		if err := rows.Scan(&w.ID, &w.Weight, &w.Notes, &w.RecordedAt); err != nil {
+			return nil, err
+		}
+		readings = append(readings, w)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if readings == nil {
+		readings = []*models.WeightReading{}
+	}
+	return readings, nil
+}
+
+func (r *SQLiteRepository) DeleteWeightReading(ctx context.Context, id string) error {
+	result, err := r.db.ExecContext(ctx, `DELETE FROM weight_readings WHERE id = ?`, id)
+	if err != nil {
+		return err
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func (r *SQLiteRepository) CreateCircumferenceReading(ctx context.Context, abdomen, biceps, quads float64, notes string, recordedAt time.Time) (*models.CircumferenceReading, error) {
+	id := uuid.New().String()
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO circumference_readings (id, abdomen, biceps, quads, notes, recorded_at) VALUES (?, ?, ?, ?, ?, ?)`,
+		id, abdomen, biceps, quads, notes, recordedAt.UTC(),
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &models.CircumferenceReading{ID: id, Abdomen: abdomen, Biceps: biceps, Quads: quads, Notes: notes, RecordedAt: recordedAt}, nil
+}
+
+func (r *SQLiteRepository) ListCircumferenceReadings(ctx context.Context) ([]*models.CircumferenceReading, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT id, abdomen, biceps, quads, IFNULL(notes, ''), recorded_at FROM circumference_readings ORDER BY recorded_at DESC`,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var readings []*models.CircumferenceReading
+	for rows.Next() {
+		c := &models.CircumferenceReading{}
+		if err := rows.Scan(&c.ID, &c.Abdomen, &c.Biceps, &c.Quads, &c.Notes, &c.RecordedAt); err != nil {
+			return nil, err
+		}
+		readings = append(readings, c)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if readings == nil {
+		readings = []*models.CircumferenceReading{}
+	}
+	return readings, nil
+}
+
+func (r *SQLiteRepository) DeleteCircumferenceReading(ctx context.Context, id string) error {
+	result, err := r.db.ExecContext(ctx, `DELETE FROM circumference_readings WHERE id = ?`, id)
 	if err != nil {
 		return err
 	}

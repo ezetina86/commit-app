@@ -32,6 +32,22 @@ type StepsReading struct {
 	RecordedAt time.Time `json:"recorded_at"`
 }
 
+type WeightReading struct {
+	ID         string    `json:"id"`
+	Weight     float64   `json:"weight"`
+	Notes      string    `json:"notes"`
+	RecordedAt time.Time `json:"recorded_at"`
+}
+
+type CircumferenceReading struct {
+	ID         string    `json:"id"`
+	Abdomen    float64   `json:"abdomen"`
+	Biceps     float64   `json:"biceps"`
+	Quads      float64   `json:"quads"`
+	Notes      string    `json:"notes"`
+	RecordedAt time.Time `json:"recorded_at"`
+}
+
 type Habit struct {
 	ID             string           `json:"id"`
 	Name           string           `json:"name"`

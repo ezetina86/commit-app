@@ -26,6 +26,12 @@ type HabitRepository interface {
 	CreateStepsReading(ctx context.Context, steps int, notes string, recordedAt time.Time) (*models.StepsReading, error)
 	ListStepsReadings(ctx context.Context) ([]*models.StepsReading, error)
 	DeleteStepsReading(ctx context.Context, id string) error
+	CreateWeightReading(ctx context.Context, weight float64, notes string, recordedAt time.Time) (*models.WeightReading, error)
+	ListWeightReadings(ctx context.Context) ([]*models.WeightReading, error)
+	DeleteWeightReading(ctx context.Context, id string) error
+	CreateCircumferenceReading(ctx context.Context, abdomen, biceps, quads float64, notes string, recordedAt time.Time) (*models.CircumferenceReading, error)
+	ListCircumferenceReadings(ctx context.Context) ([]*models.CircumferenceReading, error)
+	DeleteCircumferenceReading(ctx context.Context, id string) error
 	GetSetting(ctx context.Context, key string) (string, error)
 	SetSetting(ctx context.Context, key, value string) error
 }
@@ -219,6 +225,30 @@ func (s *HabitService) ListStepsReadings(ctx context.Context) ([]*models.StepsRe
 
 func (s *HabitService) DeleteStepsReading(ctx context.Context, id string) error {
 	return s.repo.DeleteStepsReading(ctx, id)
+}
+
+func (s *HabitService) CreateWeightReading(ctx context.Context, weight float64, notes string, recordedAt time.Time) (*models.WeightReading, error) {
+	return s.repo.CreateWeightReading(ctx, weight, notes, recordedAt)
+}
+
+func (s *HabitService) ListWeightReadings(ctx context.Context) ([]*models.WeightReading, error) {
+	return s.repo.ListWeightReadings(ctx)
+}
+
+func (s *HabitService) DeleteWeightReading(ctx context.Context, id string) error {
+	return s.repo.DeleteWeightReading(ctx, id)
+}
+
+func (s *HabitService) CreateCircumferenceReading(ctx context.Context, abdomen, biceps, quads float64, notes string, recordedAt time.Time) (*models.CircumferenceReading, error) {
+	return s.repo.CreateCircumferenceReading(ctx, abdomen, biceps, quads, notes, recordedAt)
+}
+
+func (s *HabitService) ListCircumferenceReadings(ctx context.Context) ([]*models.CircumferenceReading, error) {
+	return s.repo.ListCircumferenceReadings(ctx)
+}
+
+func (s *HabitService) DeleteCircumferenceReading(ctx context.Context, id string) error {
+	return s.repo.DeleteCircumferenceReading(ctx, id)
 }
 
 func (s *HabitService) GetSetting(ctx context.Context, key string) (string, error) {
