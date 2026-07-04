@@ -211,33 +211,37 @@ function App() {
   };
 
   const handleAddWeight = async (weight: number, notes: string, recordedAt: string) => {
-    await fetch('/api/weight', {
+    const res = await fetch('/api/weight', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ weight, notes, recorded_at: recordedAt }),
     });
+    if (!res.ok) { console.error('Failed to log weight:', res.status); return; }
     await fetchWeightReadings();
     setToast({ message: 'Weight logged', visible: true });
   };
 
   const handleDeleteWeight = async (id: string) => {
-    await fetch(`/api/weight/${id}`, { method: 'DELETE' });
+    const res = await fetch(`/api/weight/${id}`, { method: 'DELETE' });
+    if (!res.ok) { console.error('Failed to delete weight reading:', res.status); return; }
     await fetchWeightReadings();
     setToast({ message: 'Weight entry deleted', visible: true });
   };
 
   const handleAddCircumference = async (abdomen: number, biceps: number, quads: number, notes: string, recordedAt: string) => {
-    await fetch('/api/circumference', {
+    const res = await fetch('/api/circumference', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ abdomen, biceps, quads, notes, recorded_at: recordedAt }),
     });
+    if (!res.ok) { console.error('Failed to log circumference:', res.status); return; }
     await fetchCircumferenceReadings();
     setToast({ message: 'Measurements logged', visible: true });
   };
 
   const handleDeleteCircumference = async (id: string) => {
-    await fetch(`/api/circumference/${id}`, { method: 'DELETE' });
+    const res = await fetch(`/api/circumference/${id}`, { method: 'DELETE' });
+    if (!res.ok) { console.error('Failed to delete circumference reading:', res.status); return; }
     await fetchCircumferenceReadings();
     setToast({ message: 'Measurement entry deleted', visible: true });
   };
