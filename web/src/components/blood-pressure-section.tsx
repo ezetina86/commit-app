@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   LineChart,
   Line,
@@ -78,6 +78,13 @@ export function BloodPressureSection({ readings, onAdd, onDelete }: BloodPressur
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
 
+  const [sinceDate, setSinceDate] = useState('');
+
+  const filteredReadings = useMemo(
+    () => sinceDate ? readings.filter(r => r.recorded_at >= sinceDate) : readings,
+    [readings, sinceDate]
+  );
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!systolic || !diastolic || Number(systolic) <= 0 || Number(diastolic) <= 0) {
@@ -97,13 +104,13 @@ export function BloodPressureSection({ readings, onAdd, onDelete }: BloodPressur
   };
 
   // Chart data is chronological (oldest first for left-to-right rendering)
-  const chartData = [...readings].reverse();
+  const chartData = [...filteredReadings].reverse();
 
-  const avgSystolic = readings.length > 0
-    ? Math.round(readings.reduce((sum, r) => sum + r.systolic, 0) / readings.length)
+  const avgSystolic = filteredReadings.length > 0
+    ? Math.round(filteredReadings.reduce((sum, r) => sum + r.systolic, 0) / filteredReadings.length)
     : null;
-  const avgDiastolic = readings.length > 0
-    ? Math.round(readings.reduce((sum, r) => sum + r.diastolic, 0) / readings.length)
+  const avgDiastolic = filteredReadings.length > 0
+    ? Math.round(filteredReadings.reduce((sum, r) => sum + r.diastolic, 0) / filteredReadings.length)
     : null;
 
   return (
@@ -137,18 +144,40 @@ export function BloodPressureSection({ readings, onAdd, onDelete }: BloodPressur
         </div>
       )}
 
-      <h2 className="text-xl font-bold uppercase tracking-tight mb-4">
-        <span className="text-accent-3 mr-2 select-none" aria-hidden="true">&gt;</span>Blood Pressure
-      </h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-bold uppercase tracking-tight">
+          <span className="text-accent-3 mr-2 select-none" aria-hidden="true">&gt;</span>Blood Pressure
+        </h2>
+        <div className="flex items-center gap-2">
+          <input
+            type="date"
+            value={sinceDate}
+            onChange={(e) => setSinceDate(e.target.value)}
+            aria-label="Filter readings from date"
+            className="bg-background border-none text-text-primary text-xs px-2 py-1 rounded-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none"
+          />
+          {sinceDate && (
+            <button
+              type="button"
+              onClick={() => setSinceDate('')}
+              className="text-text-secondary hover:text-text-primary text-xs font-mono cursor-pointer transition-colors"
+            >
+              [clear]
+            </button>
+          )}
+        </div>
+      </div>
 
       {avgSystolic !== null && avgDiastolic !== null && (
         <div className="flex items-baseline gap-3 mb-3" aria-label="Average blood pressure">
-          <span className="text-text-secondary text-xs font-mono uppercase tracking-widest">Avg</span>
+          <span className="text-text-secondary text-xs font-mono uppercase tracking-widest">
+            {sinceDate ? `Avg since ${sinceDate}` : 'Avg'}
+          </span>
           <span className="text-3xl font-bold font-mono text-accent-4">{avgSystolic}</span>
           <span className="text-text-secondary text-lg font-mono">/</span>
           <span className="text-3xl font-bold font-mono text-accent-3">{avgDiastolic}</span>
           <span className="text-text-secondary text-xs font-mono">mmHg</span>
-          <span className="text-text-secondary text-xs font-mono ml-1">({readings.length} readings)</span>
+          <span className="text-text-secondary text-xs font-mono ml-1">({filteredReadings.length} readings)</span>
         </div>
       )}
 
@@ -195,7 +224,7 @@ export function BloodPressureSection({ readings, onAdd, onDelete }: BloodPressur
       )}
 
       {/* Chart */}
-      {readings.length > 0 && (
+      {filteredReadings.length > 0 && (
         <div className="mt-6 mb-6" aria-label="Blood pressure trend chart">
           <ResponsiveContainer width="100%" height={180}>
             <LineChart data={chartData} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   LineChart,
   Line,
@@ -75,6 +75,12 @@ export function StepsSection({ readings, target, onAdd, onDelete, onTargetChange
   const [showHistory, setShowHistory] = useState(false);
   const [editingTarget, setEditingTarget] = useState(false);
   const [targetInput, setTargetInput] = useState('');
+  const [sinceDate, setSinceDate] = useState('');
+
+  const filteredReadings = useMemo(
+    () => sinceDate ? readings.filter(r => r.recorded_at >= sinceDate) : readings,
+    [readings, sinceDate]
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,10 +108,10 @@ export function StepsSection({ readings, target, onAdd, onDelete, onTargetChange
     setTargetInput('');
   };
 
-  const chartData = [...readings].reverse();
+  const chartData = [...filteredReadings].reverse();
 
-  const avgSteps = readings.length > 0
-    ? Math.round(readings.reduce((sum, r) => sum + r.steps, 0) / readings.length)
+  const avgSteps = filteredReadings.length > 0
+    ? Math.round(filteredReadings.reduce((sum, r) => sum + r.steps, 0) / filteredReadings.length)
     : null;
 
   return (
@@ -171,15 +177,33 @@ export function StepsSection({ readings, target, onAdd, onDelete, onTargetChange
               target: {target.toLocaleString()}
             </button>
           )}
+          <input
+            type="date"
+            value={sinceDate}
+            onChange={(e) => setSinceDate(e.target.value)}
+            aria-label="Filter readings from date"
+            className="bg-background border-none text-text-primary text-xs px-2 py-1 rounded-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none"
+          />
+          {sinceDate && (
+            <button
+              type="button"
+              onClick={() => setSinceDate('')}
+              className="text-text-secondary hover:text-text-primary text-xs font-mono cursor-pointer transition-colors"
+            >
+              [clear]
+            </button>
+          )}
         </div>
       </div>
 
       {avgSteps !== null && (
         <div className="flex items-baseline gap-3 mb-3" aria-label="Average steps">
-          <span className="text-text-secondary text-xs font-mono uppercase tracking-widest">Avg</span>
+          <span className="text-text-secondary text-xs font-mono uppercase tracking-widest">
+            {sinceDate ? `Avg since ${sinceDate}` : 'Avg'}
+          </span>
           <span className="text-3xl font-bold font-mono text-accent-4">{avgSteps.toLocaleString()}</span>
           <span className="text-text-secondary text-xs font-mono">steps</span>
-          <span className="text-text-secondary text-xs font-mono ml-1">({readings.length} readings)</span>
+          <span className="text-text-secondary text-xs font-mono ml-1">({filteredReadings.length} readings)</span>
         </div>
       )}
 
@@ -223,7 +247,7 @@ export function StepsSection({ readings, target, onAdd, onDelete, onTargetChange
         <p role="alert" className="text-red-400 text-xs font-mono mb-4 pl-1">{formError}</p>
       )}
 
-      {readings.length > 0 && (
+      {filteredReadings.length > 0 && (
         <div className="mt-6 mb-6" aria-label="Steps trend chart">
           <ResponsiveContainer width="100%" height={180}>
             <LineChart data={chartData} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>

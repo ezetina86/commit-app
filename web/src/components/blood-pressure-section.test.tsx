@@ -202,4 +202,62 @@ describe('BloodPressureSection', () => {
     });
     expect(onAdd).not.toHaveBeenCalled();
   });
+
+  it('renders the since-date filter input', () => {
+    render(<BloodPressureSection readings={[]} onAdd={onAdd} onDelete={onDelete} />);
+    expect(screen.getByLabelText('Filter readings from date')).toBeInTheDocument();
+  });
+
+  it('filters avg when sinceDate is set', () => {
+    const readings = [
+      makeReading({ id: 'r1', systolic: 100, diastolic: 60, recorded_at: '2026-06-01T12:00:00Z' }),
+      makeReading({ id: 'r2', systolic: 140, diastolic: 100, recorded_at: '2026-07-01T12:00:00Z' }),
+    ];
+    render(<BloodPressureSection readings={readings} onAdd={onAdd} onDelete={onDelete} />);
+    fireEvent.change(screen.getByLabelText('Filter readings from date'), { target: { value: '2026-07-01' } });
+    const avgEl = screen.getByLabelText('Average blood pressure');
+    expect(avgEl.textContent).toContain('140');
+    expect(avgEl.textContent).toContain('100');
+    expect(avgEl.textContent).toContain('1 readings');
+  });
+
+  it('shows Avg since label when sinceDate is set', () => {
+    const readings = [makeReading({ id: 'r1', recorded_at: '2026-07-01T12:00:00Z' })];
+    render(<BloodPressureSection readings={readings} onAdd={onAdd} onDelete={onDelete} />);
+    fireEvent.change(screen.getByLabelText('Filter readings from date'), { target: { value: '2026-07-01' } });
+    expect(screen.getByLabelText('Average blood pressure').textContent).toContain('Avg since 2026-07-01');
+  });
+
+  it('shows [clear] button when sinceDate is set and hides it when cleared', async () => {
+    const user = userEvent.setup();
+    const readings = [makeReading({ id: 'r1', recorded_at: '2026-07-01T12:00:00Z' })];
+    render(<BloodPressureSection readings={readings} onAdd={onAdd} onDelete={onDelete} />);
+    expect(screen.queryByRole('button', { name: /\[clear\]/i })).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Filter readings from date'), { target: { value: '2026-07-01' } });
+    expect(screen.getByRole('button', { name: /\[clear\]/i })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /\[clear\]/i }));
+    expect(screen.queryByRole('button', { name: /\[clear\]/i })).not.toBeInTheDocument();
+  });
+
+  it('restores full avg after clearing sinceDate', async () => {
+    const user = userEvent.setup();
+    const readings = [
+      makeReading({ id: 'r1', systolic: 100, diastolic: 60, recorded_at: '2026-06-01T12:00:00Z' }),
+      makeReading({ id: 'r2', systolic: 140, diastolic: 100, recorded_at: '2026-07-01T12:00:00Z' }),
+    ];
+    render(<BloodPressureSection readings={readings} onAdd={onAdd} onDelete={onDelete} />);
+    fireEvent.change(screen.getByLabelText('Filter readings from date'), { target: { value: '2026-07-01' } });
+    await user.click(screen.getByRole('button', { name: /\[clear\]/i }));
+    const avgEl = screen.getByLabelText('Average blood pressure');
+    expect(avgEl.textContent).toContain('2 readings');
+    expect(avgEl.textContent).not.toContain('Avg since');
+  });
+
+  it('hides chart when sinceDate filters out all readings', () => {
+    const readings = [makeReading({ id: 'r1', recorded_at: '2026-06-01T12:00:00Z' })];
+    render(<BloodPressureSection readings={readings} onAdd={onAdd} onDelete={onDelete} />);
+    expect(screen.getByLabelText('Blood pressure trend chart')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Filter readings from date'), { target: { value: '2026-07-01' } });
+    expect(screen.queryByLabelText('Blood pressure trend chart')).not.toBeInTheDocument();
+  });
 });

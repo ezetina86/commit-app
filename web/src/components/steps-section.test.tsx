@@ -206,4 +206,49 @@ describe('StepsSection', () => {
     expect(onDelete).not.toHaveBeenCalled();
     expect(screen.queryByText('Delete Reading')).not.toBeInTheDocument();
   });
+
+  it('renders the since-date filter input', () => {
+    render(<StepsSection readings={[]} target={15000} onAdd={onAdd} onDelete={onDelete} onTargetChange={onTargetChange} />);
+    expect(screen.getByLabelText('Filter readings from date')).toBeInTheDocument();
+  });
+
+  it('filters avg when sinceDate is set', () => {
+    const readings = [
+      makeReading({ id: 'r1', steps: 5000, recorded_at: '2026-06-01T12:00:00Z' }),
+      makeReading({ id: 'r2', steps: 15000, recorded_at: '2026-07-01T12:00:00Z' }),
+    ];
+    render(<StepsSection readings={readings} target={15000} onAdd={onAdd} onDelete={onDelete} onTargetChange={onTargetChange} />);
+    fireEvent.change(screen.getByLabelText('Filter readings from date'), { target: { value: '2026-07-01' } });
+    const avgEl = screen.getByLabelText('Average steps');
+    expect(avgEl.textContent).toContain('15,000');
+    expect(avgEl.textContent).toContain('1 readings');
+  });
+
+  it('shows Avg since label when sinceDate is set', () => {
+    const readings = [makeReading({ id: 'r1', steps: 10000, recorded_at: '2026-07-01T12:00:00Z' })];
+    render(<StepsSection readings={readings} target={15000} onAdd={onAdd} onDelete={onDelete} onTargetChange={onTargetChange} />);
+    fireEvent.change(screen.getByLabelText('Filter readings from date'), { target: { value: '2026-07-01' } });
+    expect(screen.getByLabelText('Average steps').textContent).toContain('Avg since 2026-07-01');
+  });
+
+  it('restores full avg after clearing sinceDate', async () => {
+    const user = userEvent.setup();
+    const readings = [
+      makeReading({ id: 'r1', steps: 5000, recorded_at: '2026-06-01T12:00:00Z' }),
+      makeReading({ id: 'r2', steps: 15000, recorded_at: '2026-07-01T12:00:00Z' }),
+    ];
+    render(<StepsSection readings={readings} target={15000} onAdd={onAdd} onDelete={onDelete} onTargetChange={onTargetChange} />);
+    fireEvent.change(screen.getByLabelText('Filter readings from date'), { target: { value: '2026-07-01' } });
+    await user.click(screen.getByRole('button', { name: /\[clear\]/i }));
+    expect(screen.getByLabelText('Average steps').textContent).toContain('2 readings');
+    expect(screen.getByLabelText('Average steps').textContent).not.toContain('Avg since');
+  });
+
+  it('hides chart when sinceDate filters out all readings', () => {
+    const readings = [makeReading({ id: 'r1', steps: 10000, recorded_at: '2026-06-01T12:00:00Z' })];
+    render(<StepsSection readings={readings} target={15000} onAdd={onAdd} onDelete={onDelete} onTargetChange={onTargetChange} />);
+    expect(screen.getByLabelText('Steps trend chart')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Filter readings from date'), { target: { value: '2026-07-01' } });
+    expect(screen.queryByLabelText('Steps trend chart')).not.toBeInTheDocument();
+  });
 });
