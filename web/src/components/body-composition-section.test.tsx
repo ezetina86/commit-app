@@ -346,4 +346,80 @@ describe('BodyCompositionSection', () => {
     expect(defaultProps.onDeleteCircumference).not.toHaveBeenCalled();
     expect(screen.queryByText(/permanently delete this circumference reading/i)).not.toBeInTheDocument();
   });
+
+  // ── Since-date filter helpers ─────────────────────────────────────────────
+
+  const onAddWeight = vi.fn().mockResolvedValue(undefined);
+  const onDeleteWeight = vi.fn().mockResolvedValue(undefined);
+  const onAddCircumference = vi.fn().mockResolvedValue(undefined);
+  const onDeleteCircumference = vi.fn().mockResolvedValue(undefined);
+
+  const makeWeightReading = (overrides: Partial<WeightReading> = {}): WeightReading => ({
+    id: 'w1',
+    weight: 180,
+    notes: '',
+    recorded_at: '2026-07-01T12:00:00Z',
+    ...overrides,
+  });
+
+  const makeCircumferenceReading = (overrides: Partial<CircumferenceReading> = {}): CircumferenceReading => ({
+    id: 'c1',
+    abdomen: 90,
+    biceps: 35,
+    quads: 55,
+    notes: '',
+    recorded_at: '2026-07-01T12:00:00Z',
+    ...overrides,
+  });
+
+  it('renders weight since-date filter input', () => {
+    render(<BodyCompositionSection weightReadings={[]} circumferenceReadings={[]} onAddWeight={onAddWeight} onDeleteWeight={onDeleteWeight} onAddCircumference={onAddCircumference} onDeleteCircumference={onDeleteCircumference} />);
+    expect(screen.getByLabelText('Filter weight readings from date')).toBeInTheDocument();
+  });
+
+  it('renders circumference since-date filter input', () => {
+    render(<BodyCompositionSection weightReadings={[]} circumferenceReadings={[]} onAddWeight={onAddWeight} onDeleteWeight={onDeleteWeight} onAddCircumference={onAddCircumference} onDeleteCircumference={onDeleteCircumference} />);
+    expect(screen.getByLabelText('Filter circumference readings from date')).toBeInTheDocument();
+  });
+
+  it('shows avg weight when readings exist', () => {
+    const weightReadings = [
+      makeWeightReading({ id: 'w1', weight: 180, recorded_at: '2026-07-01T12:00:00Z' }),
+      makeWeightReading({ id: 'w2', weight: 178, recorded_at: '2026-07-02T12:00:00Z' }),
+    ];
+    render(<BodyCompositionSection weightReadings={weightReadings} circumferenceReadings={[]} onAddWeight={onAddWeight} onDeleteWeight={onDeleteWeight} onAddCircumference={onAddCircumference} onDeleteCircumference={onDeleteCircumference} />);
+    const avgEl = screen.getByLabelText('Average weight');
+    expect(avgEl.textContent).toContain('179');
+    expect(avgEl.textContent).toContain('2 readings');
+  });
+
+  it('filters avg weight when sinceDateWeight is set', () => {
+    const weightReadings = [
+      makeWeightReading({ id: 'w1', weight: 190, recorded_at: '2026-06-01T12:00:00Z' }),
+      makeWeightReading({ id: 'w2', weight: 180, recorded_at: '2026-07-01T12:00:00Z' }),
+    ];
+    render(<BodyCompositionSection weightReadings={weightReadings} circumferenceReadings={[]} onAddWeight={onAddWeight} onDeleteWeight={onDeleteWeight} onAddCircumference={onAddCircumference} onDeleteCircumference={onDeleteCircumference} />);
+    fireEvent.change(screen.getByLabelText('Filter weight readings from date'), { target: { value: '2026-07-01' } });
+    const avgEl = screen.getByLabelText('Average weight');
+    expect(avgEl.textContent).toContain('180');
+    expect(avgEl.textContent).toContain('1 readings');
+  });
+
+  it('shows Avg since label for weight when sinceDateWeight is set', () => {
+    const weightReadings = [makeWeightReading({ id: 'w1', weight: 180, recorded_at: '2026-07-01T12:00:00Z' })];
+    render(<BodyCompositionSection weightReadings={weightReadings} circumferenceReadings={[]} onAddWeight={onAddWeight} onDeleteWeight={onDeleteWeight} onAddCircumference={onAddCircumference} onDeleteCircumference={onDeleteCircumference} />);
+    fireEvent.change(screen.getByLabelText('Filter weight readings from date'), { target: { value: '2026-07-01' } });
+    expect(screen.getByLabelText('Average weight').textContent).toContain('Avg since 2026-07-01');
+  });
+
+  it('weight and circumference sinceDate states are independent', () => {
+    const weightReadings = [makeWeightReading({ id: 'w1', weight: 180, recorded_at: '2026-06-01T12:00:00Z' })];
+    const circumferenceReadings = [makeCircumferenceReading({ id: 'c1', recorded_at: '2026-06-01T12:00:00Z' })];
+    render(<BodyCompositionSection weightReadings={weightReadings} circumferenceReadings={circumferenceReadings} onAddWeight={onAddWeight} onDeleteWeight={onDeleteWeight} onAddCircumference={onAddCircumference} onDeleteCircumference={onDeleteCircumference} />);
+    // Set weight filter to future date (filters out all weight readings)
+    fireEvent.change(screen.getByLabelText('Filter weight readings from date'), { target: { value: '2026-07-01' } });
+    // Circumference avg should still show (unaffected)
+    expect(screen.queryByLabelText('Weight trend chart')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Circumference trend chart')).toBeInTheDocument();
+  });
 });

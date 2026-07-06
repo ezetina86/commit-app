@@ -122,6 +122,8 @@ export function BodyCompositionSection({
   const [showCircumferenceHistory, setShowCircumferenceHistory] = useState(false);
   const [confirmDeleteWeightId, setConfirmDeleteWeightId] = useState<string | null>(null);
   const [confirmDeleteCircumferenceId, setConfirmDeleteCircumferenceId] = useState<string | null>(null);
+  const [sinceDateWeight, setSinceDateWeight] = useState('');
+  const [sinceDateCircumference, setSinceDateCircumference] = useState('');
 
   // ponytail: oldest-vs-latest trend; upgrade to linear regression if clinical accuracy needed
   const alertState = useMemo((): AlertState => {
@@ -170,6 +172,16 @@ export function BodyCompositionSection({
     return null;
   }, [weightReadings, circumferenceReadings]);
 
+  const filteredWeightReadings = useMemo(
+    () => sinceDateWeight ? weightReadings.filter(r => r.recorded_at >= sinceDateWeight) : weightReadings,
+    [weightReadings, sinceDateWeight]
+  );
+
+  const filteredCircumferenceReadings = useMemo(
+    () => sinceDateCircumference ? circumferenceReadings.filter(r => r.recorded_at >= sinceDateCircumference) : circumferenceReadings,
+    [circumferenceReadings, sinceDateCircumference]
+  );
+
   const handleWeightSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const w = Number(weightForm.weight);
@@ -206,8 +218,22 @@ export function BodyCompositionSection({
     }
   };
 
-  const weightChartData = [...weightReadings].reverse();
-  const circumferenceChartData = [...circumferenceReadings].reverse();
+  const weightChartData = [...filteredWeightReadings].reverse();
+  const circumferenceChartData = [...filteredCircumferenceReadings].reverse();
+
+  const avgWeight = filteredWeightReadings.length > 0
+    ? Math.round(filteredWeightReadings.reduce((sum, r) => sum + r.weight, 0) / filteredWeightReadings.length * 10) / 10
+    : null;
+
+  const avgAbdomen = filteredCircumferenceReadings.length > 0
+    ? Math.round(filteredCircumferenceReadings.reduce((sum, r) => sum + r.abdomen, 0) / filteredCircumferenceReadings.length * 10) / 10
+    : null;
+  const avgBiceps = filteredCircumferenceReadings.length > 0
+    ? Math.round(filteredCircumferenceReadings.reduce((sum, r) => sum + r.biceps, 0) / filteredCircumferenceReadings.length * 10) / 10
+    : null;
+  const avgQuads = filteredCircumferenceReadings.length > 0
+    ? Math.round(filteredCircumferenceReadings.reduce((sum, r) => sum + r.quads, 0) / filteredCircumferenceReadings.length * 10) / 10
+    : null;
 
   const alertConfig: Record<Exclude<AlertState, null>, { color: string; message: string }> = {
     catabolism_warning: {
@@ -302,7 +328,38 @@ export function BodyCompositionSection({
 
       {/* ── Weight subsection ── */}
       <div className="mb-8">
-        <h3 className="text-sm font-bold uppercase tracking-widest text-text-secondary mb-3">Weight Log</h3>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-bold uppercase tracking-widest text-text-secondary">Weight Log</h3>
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              value={sinceDateWeight}
+              onChange={(e) => setSinceDateWeight(e.target.value)}
+              aria-label="Filter weight readings from date"
+              className="bg-background border-none text-text-primary text-xs px-2 py-1 rounded-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none"
+            />
+            {sinceDateWeight && (
+              <button
+                type="button"
+                onClick={() => setSinceDateWeight('')}
+                className="text-text-secondary hover:text-text-primary text-xs font-mono cursor-pointer transition-colors"
+              >
+                [clear]
+              </button>
+            )}
+          </div>
+        </div>
+
+        {avgWeight !== null && (
+          <div className="flex items-baseline gap-3 mb-3" aria-label="Average weight">
+            <span className="text-text-secondary text-xs font-mono uppercase tracking-widest">
+              {sinceDateWeight ? `Avg since ${sinceDateWeight}` : 'Avg'}
+            </span>
+            <span className="text-3xl font-bold font-mono text-accent-4">{avgWeight}</span>
+            <span className="text-text-secondary text-xs font-mono">lbs</span>
+            <span className="text-text-secondary text-xs font-mono ml-1">({filteredWeightReadings.length} readings)</span>
+          </div>
+        )}
 
         <form onSubmit={handleWeightSubmit} className="flex flex-wrap gap-2 mb-2" aria-label="Log weight">
           <input
@@ -345,7 +402,7 @@ export function BodyCompositionSection({
           <p role="alert" className="text-red-400 text-xs font-mono mb-4 pl-1">{weightFormError}</p>
         )}
 
-        {weightReadings.length > 0 && (
+        {filteredWeightReadings.length > 0 && (
           <div className="mt-6 mb-6" aria-label="Weight trend chart">
             <ResponsiveContainer width="100%" height={180}>
               <LineChart data={weightChartData} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
@@ -418,7 +475,42 @@ export function BodyCompositionSection({
 
       {/* ── Circumference subsection ── */}
       <div>
-        <h3 className="text-sm font-bold uppercase tracking-widest text-text-secondary mb-3">Circumference Log</h3>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-bold uppercase tracking-widest text-text-secondary">Circumference Log</h3>
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              value={sinceDateCircumference}
+              onChange={(e) => setSinceDateCircumference(e.target.value)}
+              aria-label="Filter circumference readings from date"
+              className="bg-background border-none text-text-primary text-xs px-2 py-1 rounded-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none"
+            />
+            {sinceDateCircumference && (
+              <button
+                type="button"
+                onClick={() => setSinceDateCircumference('')}
+                className="text-text-secondary hover:text-text-primary text-xs font-mono cursor-pointer transition-colors"
+              >
+                [clear]
+              </button>
+            )}
+          </div>
+        </div>
+
+        {avgAbdomen !== null && (
+          <div className="flex items-baseline gap-3 mb-3" aria-label="Average circumference">
+            <span className="text-text-secondary text-xs font-mono uppercase tracking-widest">
+              {sinceDateCircumference ? `Avg since ${sinceDateCircumference}` : 'Avg'}
+            </span>
+            <span style={{ color: ABDOMEN_COLOR }} className="text-xl font-bold font-mono">{avgAbdomen}</span>
+            <span className="text-text-secondary text-xs">/</span>
+            <span style={{ color: BICEPS_COLOR }} className="text-xl font-bold font-mono">{avgBiceps}</span>
+            <span className="text-text-secondary text-xs">/</span>
+            <span style={{ color: QUADS_COLOR }} className="text-xl font-bold font-mono">{avgQuads}</span>
+            <span className="text-text-secondary text-xs font-mono">cm</span>
+            <span className="text-text-secondary text-xs font-mono ml-1">({filteredCircumferenceReadings.length} readings)</span>
+          </div>
+        )}
 
         <form onSubmit={handleCircumferenceSubmit} className="flex flex-wrap gap-2 mb-2" aria-label="Log circumference">
           <input
@@ -481,7 +573,7 @@ export function BodyCompositionSection({
           <p role="alert" className="text-red-400 text-xs font-mono mb-4 pl-1">{circumferenceFormError}</p>
         )}
 
-        {circumferenceReadings.length > 0 && (
+        {filteredCircumferenceReadings.length > 0 && (
           <div className="mt-6 mb-6" aria-label="Circumference trend chart">
             <ResponsiveContainer width="100%" height={180}>
               <LineChart data={circumferenceChartData} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
