@@ -83,6 +83,7 @@ export function EloSection({ readings, target, onAdd, onDelete, onTargetChange }
   const [showHistory, setShowHistory] = useState(false);
   const [editingTarget, setEditingTarget] = useState(false);
   const [targetInput, setTargetInput] = useState(String(target));
+  const [sinceDate, setSinceDate] = useState('');
 
   const handleTabChange = (p: 'chesscom' | 'duolingo') => {
     setSelectedPlatform(p);
@@ -121,8 +122,13 @@ export function EloSection({ readings, target, onAdd, onDelete, onTargetChange }
     [readings, selectedPlatform],
   );
 
+  const filteredReadings = useMemo(
+    () => sinceDate ? visibleReadings.filter(r => r.recorded_at >= sinceDate) : visibleReadings,
+    [visibleReadings, sinceDate]
+  );
+
   const chartData = useMemo(() => {
-    return visibleReadings
+    return filteredReadings
       .slice()
       .sort((a, b) => a.recorded_at.localeCompare(b.recorded_at))
       .map((r) => ({
@@ -130,12 +136,16 @@ export function EloSection({ readings, target, onAdd, onDelete, onTargetChange }
         dateLabel: formatDate(r.recorded_at),
         rating: r.rating,
       }));
-  }, [visibleReadings]);
+  }, [filteredReadings]);
 
   const maxRating = useMemo(() => {
-    if (visibleReadings.length === 0) return 0;
-    return Math.max(...visibleReadings.map((r) => r.rating));
-  }, [visibleReadings]);
+    if (filteredReadings.length === 0) return 0;
+    return Math.max(...filteredReadings.map((r) => r.rating));
+  }, [filteredReadings]);
+
+  const avgRating = filteredReadings.length > 0
+    ? Math.round(filteredReadings.reduce((sum, r) => sum + r.rating, 0) / filteredReadings.length)
+    : null;
 
   return (
     <section aria-label="Chess ELO Rating" className="w-full bg-surface p-6 rounded-sm border border-white/5">
@@ -194,6 +204,22 @@ export function EloSection({ readings, target, onAdd, onDelete, onTargetChange }
               {target}
             </button>
           )}
+          <input
+            type="date"
+            value={sinceDate}
+            onChange={(e) => setSinceDate(e.target.value)}
+            aria-label="Filter ratings from date"
+            className="bg-background border-none text-text-primary text-xs px-2 py-1 rounded-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none"
+          />
+          {sinceDate && (
+            <button
+              type="button"
+              onClick={() => setSinceDate('')}
+              className="text-text-secondary hover:text-text-primary text-xs font-mono cursor-pointer transition-colors"
+            >
+              [clear]
+            </button>
+          )}
         </div>
       </div>
 
@@ -215,6 +241,16 @@ export function EloSection({ readings, target, onAdd, onDelete, onTargetChange }
           </button>
         ))}
       </div>
+
+      {avgRating !== null && (
+        <div className="flex items-baseline gap-3 mb-3" aria-label="Average ELO rating">
+          <span className="text-text-secondary text-xs font-mono uppercase tracking-widest">
+            {sinceDate ? `Avg since ${sinceDate}` : 'Avg'}
+          </span>
+          <span className="text-3xl font-bold font-mono text-accent-4">{avgRating}</span>
+          <span className="text-text-secondary text-xs font-mono ml-1">({filteredReadings.length} readings)</span>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="flex flex-wrap gap-2 mb-2" aria-label="Log ELO rating">
         <select
@@ -247,7 +283,7 @@ export function EloSection({ readings, target, onAdd, onDelete, onTargetChange }
         <p role="alert" className="text-red-400 text-xs font-mono mb-4 pl-1">{formError}</p>
       )}
 
-      {visibleReadings.length > 0 && (
+      {filteredReadings.length > 0 && (
         <div className="mt-6 mb-4" aria-label="Chess ELO trend chart">
           <ResponsiveContainer width="100%" height={200}>
             <LineChart data={chartData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
