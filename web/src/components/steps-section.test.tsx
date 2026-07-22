@@ -14,7 +14,7 @@ const makeReading = (overrides: Partial<StepsReading> = {}): StepsReading => ({
   id: 'r1',
   steps: 10000,
   notes: '',
-  recorded_at: '2026-05-01T14:00:00Z',
+  recorded_at: new Date().toISOString(),
   ...overrides,
 });
 
@@ -207,9 +207,10 @@ describe('StepsSection', () => {
     expect(screen.queryByText('Delete Reading')).not.toBeInTheDocument();
   });
 
-  it('renders the since-date filter input', () => {
+  it('renders the since-date filter input and preset buttons', () => {
     render(<StepsSection readings={[]} target={15000} onAdd={onAdd} onDelete={onDelete} onTargetChange={onTargetChange} />);
     expect(screen.getByLabelText('Filter readings from date')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /30d/i })).toBeInTheDocument();
   });
 
   it('filters avg when sinceDate is set', () => {
@@ -244,11 +245,16 @@ describe('StepsSection', () => {
     expect(screen.getByLabelText('Average steps').textContent).not.toContain('Avg since');
   });
 
-  it('hides chart when sinceDate filters out all readings', () => {
-    const readings = [makeReading({ id: 'r1', steps: 10000, recorded_at: '2026-06-01T12:00:00Z' })];
+  it('switches time range presets when clicked', async () => {
+    const user = userEvent.setup();
+    const readings = [
+      makeReading({ id: 'r1', steps: 5000, recorded_at: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toISOString() }),
+      makeReading({ id: 'r2', steps: 15000, recorded_at: new Date().toISOString() }),
+    ];
     render(<StepsSection readings={readings} target={15000} onAdd={onAdd} onDelete={onDelete} onTargetChange={onTargetChange} />);
-    expect(screen.getByLabelText('Steps trend chart')).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Filter readings from date'), { target: { value: '2026-07-01' } });
-    expect(screen.queryByLabelText('Steps trend chart')).not.toBeInTheDocument();
+
+    expect(screen.getByLabelText('Average steps').textContent).toContain('1 readings');
+    await user.click(screen.getByRole('button', { name: /90d/i }));
+    expect(screen.getByLabelText('Average steps').textContent).toContain('2 readings');
   });
 });

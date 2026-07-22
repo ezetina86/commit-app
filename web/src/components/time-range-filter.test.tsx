@@ -53,6 +53,6 @@ describe('TimeRangeFilter', () => {
     const clearButton = screen.getByRole('button', { name: /clear/i });
     fireEvent.click(clearButton);
     expect(onCustomDateChange).toHaveBeenCalledWith('');
-    expect(onPresetChange).toHaveBeenCalledWith('30d');
+    expect(onPresetChange).toHaveBeenCalledWith('all');
   });
 });

@@ -57,7 +57,7 @@ export function TimeRangeFilter({
           type="button"
           onClick={() => {
             onCustomDateChange('');
-            onPresetChange('30d');
+            onPresetChange('all');
           }}
           className="text-text-secondary hover:text-text-primary text-[10px] font-mono cursor-pointer transition-colors px-1"
         >
