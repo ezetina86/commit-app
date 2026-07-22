@@ -10,6 +10,13 @@ import {
   ResponsiveContainer,
   type TooltipProps,
 } from 'recharts';
+import { TimeRangeFilter } from './time-range-filter';
+import {
+  type TimeRangePreset,
+  filterReadingsByPreset,
+  calculateDynamicDomain,
+  calculatePeriodTrend,
+} from '../utils/chart-helpers';
 
 const TOKEN_GREEN          = '#39D353';
 const TOKEN_TEXT_SECONDARY = '#7D8590';
@@ -32,8 +39,6 @@ interface EloSectionProps {
   onTargetChange: (target: number) => Promise<void>;
 }
 
-// ── Tooltip ──────────────────────────────────────────────────────────────────
-
 interface EloTooltipPoint {
   dateLabel: string;
   rating: number;
@@ -53,8 +58,6 @@ function EloTooltip({ active, payload }: TooltipProps<number, string>) {
     </div>
   );
 }
-
-// ── Main component ────────────────────────────────────────────────────────────
 
 const formatDate = (iso: string) =>
   new Intl.DateTimeFormat('en-US', {
@@ -83,6 +86,8 @@ export function EloSection({ readings, target, onAdd, onDelete, onTargetChange }
   const [showHistory, setShowHistory] = useState(false);
   const [editingTarget, setEditingTarget] = useState(false);
   const [targetInput, setTargetInput] = useState(String(target));
+
+  const [preset, setPreset] = useState<TimeRangePreset>('30d');
   const [sinceDate, setSinceDate] = useState('');
 
   const handleTabChange = (p: 'chesscom' | 'duolingo') => {
@@ -123,8 +128,24 @@ export function EloSection({ readings, target, onAdd, onDelete, onTargetChange }
   );
 
   const filteredReadings = useMemo(
-    () => sinceDate ? visibleReadings.filter(r => r.recorded_at >= sinceDate) : visibleReadings,
-    [visibleReadings, sinceDate]
+    () => filterReadingsByPreset(visibleReadings, (r) => r.recorded_at, preset, sinceDate),
+    [visibleReadings, preset, sinceDate]
+  );
+
+  const previousPeriodReadings = useMemo(() => {
+    if (preset !== '30d') return [];
+    const now = Date.now();
+    const start30 = now - 30 * 24 * 60 * 60 * 1000;
+    const start60 = now - 60 * 24 * 60 * 60 * 1000;
+    return visibleReadings.filter((r) => {
+      const t = new Date(r.recorded_at).getTime();
+      return t >= start60 && t < start30;
+    });
+  }, [visibleReadings, preset]);
+
+  const eloTrend = useMemo(
+    () => calculatePeriodTrend(filteredReadings.map(r => r.rating), previousPeriodReadings.map(r => r.rating)),
+    [filteredReadings, previousPeriodReadings]
   );
 
   const chartData = useMemo(() => {
@@ -146,6 +167,11 @@ export function EloSection({ readings, target, onAdd, onDelete, onTargetChange }
   const avgRating = filteredReadings.length > 0
     ? Math.round(filteredReadings.reduce((sum, r) => sum + r.rating, 0) / filteredReadings.length)
     : null;
+
+  const yDomain = useMemo(() => {
+    const ratings = filteredReadings.map(r => r.rating);
+    return calculateDynamicDomain(ratings, [target], 0.08, 50);
+  }, [filteredReadings, target]);
 
   return (
     <section aria-label="Chess ELO Rating" className="w-full bg-surface p-6 rounded-sm border border-white/5">
@@ -172,55 +198,49 @@ export function EloSection({ readings, target, onAdd, onDelete, onTargetChange }
         </div>
       )}
 
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold uppercase tracking-tight">
-          <span className="text-accent-3 mr-2 select-none" aria-hidden="true">&gt;</span>Chess ELO Rating
-        </h2>
-        <div className="flex items-center gap-2 text-xs font-mono text-text-secondary">
-          <span>Target:</span>
-          {editingTarget ? (
-            <span className="flex items-center gap-1">
-              <input
-                type="number"
-                value={targetInput}
-                onChange={(e) => setTargetInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleTargetSave();
-                  if (e.key === 'Escape') { setTargetInput(String(target)); setEditingTarget(false); }
-                }}
-                aria-label="ELO target"
-                className="w-20 bg-background border-none text-text-primary px-2 py-1 rounded-sm text-xs focus-visible:ring-1 focus-visible:ring-accent-4 outline-none"
-                autoFocus
-              />
-              <button onClick={handleTargetSave} className="text-accent-4 hover:text-white uppercase tracking-wider cursor-pointer transition-colors">Save</button>
-              <button onClick={() => { setTargetInput(String(target)); setEditingTarget(false); }} className="text-text-secondary hover:text-text-primary uppercase tracking-wider cursor-pointer transition-colors">Cancel</button>
-            </span>
-          ) : (
-            <button
-              onClick={() => { setTargetInput(String(target)); setEditingTarget(true); }}
-              aria-label={`Current ELO target ${target}, click to edit`}
-              className="text-accent-4 font-bold hover:underline cursor-pointer transition-colors"
-            >
-              {target}
-            </button>
-          )}
-          <input
-            type="date"
-            value={sinceDate}
-            onChange={(e) => setSinceDate(e.target.value)}
-            aria-label="Filter ratings from date"
-            className="bg-background border-none text-text-primary text-xs px-2 py-1 rounded-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none"
-          />
-          {sinceDate && (
-            <button
-              type="button"
-              onClick={() => setSinceDate('')}
-              className="text-text-secondary hover:text-text-primary text-xs font-mono cursor-pointer transition-colors"
-            >
-              [clear]
-            </button>
-          )}
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div className="flex items-center gap-3">
+          <h2 className="text-xl font-bold uppercase tracking-tight">
+            <span className="text-accent-3 mr-2 select-none" aria-hidden="true">&gt;</span>Chess ELO Rating
+          </h2>
+          <div className="flex items-center gap-2 text-xs font-mono text-text-secondary">
+            <span>Target:</span>
+            {editingTarget ? (
+              <span className="flex items-center gap-1">
+                <input
+                  type="number"
+                  value={targetInput}
+                  onChange={(e) => setTargetInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleTargetSave();
+                    if (e.key === 'Escape') { setTargetInput(String(target)); setEditingTarget(false); }
+                  }}
+                  aria-label="ELO target"
+                  className="w-20 bg-background border-none text-text-primary px-2 py-1 rounded-sm text-xs focus-visible:ring-1 focus-visible:ring-accent-4 outline-none font-mono"
+                  autoFocus
+                />
+                <button onClick={handleTargetSave} className="text-accent-4 hover:text-white uppercase tracking-wider cursor-pointer transition-colors font-bold">Save</button>
+                <button onClick={() => { setTargetInput(String(target)); setEditingTarget(false); }} className="text-text-secondary hover:text-text-primary uppercase tracking-wider cursor-pointer transition-colors">Cancel</button>
+              </span>
+            ) : (
+              <button
+                onClick={() => { setTargetInput(String(target)); setEditingTarget(true); }}
+                aria-label={`Current ELO target ${target}, click to edit`}
+                className="text-accent-4 font-bold hover:underline cursor-pointer transition-colors"
+              >
+                {target}
+              </button>
+            )}
+          </div>
         </div>
+
+        <TimeRangeFilter
+          activePreset={preset}
+          onPresetChange={setPreset}
+          customDate={sinceDate}
+          onCustomDateChange={setSinceDate}
+          customDateAriaLabel="Filter ratings from date"
+        />
       </div>
 
       <div className="flex gap-1 mb-4" role="tablist" aria-label="Platform">
@@ -243,12 +263,25 @@ export function EloSection({ readings, target, onAdd, onDelete, onTargetChange }
       </div>
 
       {avgRating !== null && (
-        <div className="flex items-baseline gap-3 mb-3" aria-label="Average ELO rating">
+        <div className="flex flex-wrap items-baseline gap-3 mb-3" aria-label="Average ELO rating">
           <span className="text-text-secondary text-xs font-mono uppercase tracking-widest">
-            {sinceDate ? `Avg since ${sinceDate}` : 'Avg'}
+            {preset === '30d' ? '30D Avg' : preset === '90d' ? '90D Avg' : preset === '1y' ? '1Y Avg' : sinceDate ? `Avg since ${sinceDate}` : 'Avg'}
           </span>
           <span className="text-3xl font-bold font-mono text-accent-4">{avgRating}</span>
-          <span className="text-text-secondary text-xs font-mono ml-1">({filteredReadings.length} readings)</span>
+          <span className="text-text-secondary text-xs font-mono font-bold">({filteredReadings.length} readings)</span>
+
+          {preset === '30d' && previousPeriodReadings.length > 0 && eloTrend.delta !== 0 && (
+            <span
+              className={`text-xs font-mono font-bold px-2 py-0.5 rounded-sm border ${
+                eloTrend.delta > 0
+                  ? 'text-accent-4 bg-accent-4/10 border-accent-4/30'
+                  : 'text-amber-400 bg-amber-400/10 border-amber-400/30'
+              }`}
+              aria-label="Period-over-period ELO trend"
+            >
+              {eloTrend.delta > 0 ? '▲' : '▼'} {Math.abs(eloTrend.delta)} pts ({eloTrend.percent > 0 ? '+' : ''}{eloTrend.percent}%) vs prev 30d
+            </span>
+          )}
         </div>
       )}
 
@@ -257,7 +290,7 @@ export function EloSection({ readings, target, onAdd, onDelete, onTargetChange }
           value={platform}
           onChange={(e) => setPlatform(e.target.value as 'duolingo' | 'chesscom')}
           aria-label="Platform"
-          className="bg-background border-none text-text-primary px-3 py-2 rounded-sm text-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none cursor-pointer"
+          className="bg-background border-none text-text-primary px-3 py-2 rounded-sm text-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none cursor-pointer font-mono"
         >
           <option value="chesscom">Chess.com</option>
           <option value="duolingo">Duolingo</option>
@@ -269,7 +302,7 @@ export function EloSection({ readings, target, onAdd, onDelete, onTargetChange }
           placeholder="ELO Rating"
           aria-label="ELO Rating"
           name="elo-rating"
-          className="w-32 bg-background border-none text-text-primary px-3 py-2 rounded-sm text-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none placeholder:text-text-secondary/50"
+          className="w-32 bg-background border-none text-text-primary px-3 py-2 rounded-sm text-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none placeholder:text-text-secondary/50 font-mono"
         />
         <button
           type="submit"
@@ -296,11 +329,7 @@ export function EloSection({ readings, target, onAdd, onDelete, onTargetChange }
                 tickLine={false}
               />
               <YAxis
-                /* v8 ignore next */
-                domain={([dataMin, dataMax]: [number, number]) => [
-                  Math.max(0, Math.min(dataMin, target) - 50),
-                  Math.max(dataMax, target, maxRating) + 50,
-                ]}
+                domain={yDomain}
                 tick={{ fill: TOKEN_TEXT_SECONDARY, fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }}
                 axisLine={false}
                 tickLine={false}

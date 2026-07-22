@@ -61,7 +61,6 @@ describe('BodyCompositionSection', () => {
 
   it('shows empty state when no weight readings', () => {
     render(<BodyCompositionSection {...defaultProps} />);
-    // Both weight and circumference show "No Readings Logged" — confirm at least one exists
     expect(screen.getAllByText(/no readings logged/i).length).toBeGreaterThanOrEqual(1);
   });
 
@@ -98,7 +97,6 @@ describe('BodyCompositionSection', () => {
   });
 
   // ── Alert: catabolism_warning ─────────────────────────────────────────────
-  // delta = (196.9 - 200) / 200 * 100 = -1.55% → < -1.5% → catabolism
 
   it('shows catabolism_warning when 7-day weight loss exceeds 1.5%', () => {
     const readings = [
@@ -110,28 +108,25 @@ describe('BodyCompositionSection', () => {
     expect(screen.getByRole('alert').textContent).toMatch(/catabolism/i);
   });
 
-  it('no catabolism_warning when weight loss is exactly at threshold (1.5% exactly is not triggered)', () => {
-    // delta = -1.5% exactly: latest = 200 * (1 - 0.015) = 197.0 → NOT < -1.5%
+  it('no catabolism_warning when weight loss is exactly at threshold', () => {
     const readings = [
       makeWeight({ id: 'w-old', weight: 200, recorded_at: daysAgo(6) }),
       makeWeight({ id: 'w-new', weight: 197.0, recorded_at: daysAgo(1) }),
     ];
     render(<BodyCompositionSection {...defaultProps} weightReadings={readings} />);
-    // -1.5% is not strictly less than -1.5
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   // ── Alert: protein_deficit_warning ───────────────────────────────────────
-  // limb shrinking + weight loss > 1.0% in 7 days
 
   it('shows protein_deficit_warning when limb shrinks and weight drops > 1%', () => {
     const weightReadings = [
       makeWeight({ id: 'w-old', weight: 200, recorded_at: daysAgo(6) }),
-      makeWeight({ id: 'w-new', weight: 197.8, recorded_at: daysAgo(1) }), // -1.1%
+      makeWeight({ id: 'w-new', weight: 197.8, recorded_at: daysAgo(1) }),
     ];
     const circumferenceReadings = [
       makeCircumference({ id: 'c-old', abdomen: 38, biceps: 14, quads: 22, recorded_at: daysAgo(13) }),
-      makeCircumference({ id: 'c-new', abdomen: 37, biceps: 13.5, quads: 22, recorded_at: daysAgo(1) }), // biceps shrinking
+      makeCircumference({ id: 'c-new', abdomen: 37, biceps: 13.5, quads: 22, recorded_at: daysAgo(1) }),
     ];
     render(<BodyCompositionSection {...defaultProps} weightReadings={weightReadings} circumferenceReadings={circumferenceReadings} />);
     expect(screen.getByRole('alert')).toBeInTheDocument();
@@ -139,7 +134,6 @@ describe('BodyCompositionSection', () => {
   });
 
   // ── Alert: optimal ───────────────────────────────────────────────────────
-  // abdomen decreasing, biceps and quads stable/increasing
 
   it('shows optimal when waist shrinks and limbs stable or growing', () => {
     const circumferenceReadings = [
@@ -154,10 +148,9 @@ describe('BodyCompositionSection', () => {
   // ── Alert: catabolism_warning priority ───────────────────────────────────
 
   it('shows catabolism_warning even when protein_deficit conditions also met', () => {
-    // Both conditions: weight loss > 1.5% AND limb shrinking + weight loss > 1%
     const weightReadings = [
       makeWeight({ id: 'w-old', weight: 200, recorded_at: daysAgo(6) }),
-      makeWeight({ id: 'w-new', weight: 196.5, recorded_at: daysAgo(1) }), // -1.75%
+      makeWeight({ id: 'w-new', weight: 196.5, recorded_at: daysAgo(1) }),
     ];
     const circumferenceReadings = [
       makeCircumference({ id: 'c-old', abdomen: 38, biceps: 14, quads: 22, recorded_at: daysAgo(13) }),
@@ -237,7 +230,6 @@ describe('BodyCompositionSection', () => {
     render(<BodyCompositionSection {...defaultProps} />);
     fireEvent.submit(screen.getByRole('form', { name: /log circumference/i }));
     await waitFor(() => {
-      // weight form error + circ form error - find the circ one
       const alerts = screen.getAllByRole('alert');
       expect(alerts.length).toBeGreaterThan(0);
     });
@@ -358,7 +350,7 @@ describe('BodyCompositionSection', () => {
     id: 'w1',
     weight: 180,
     notes: '',
-    recorded_at: '2026-07-01T12:00:00Z',
+    recorded_at: daysAgo(1),
     ...overrides,
   });
 
@@ -368,7 +360,7 @@ describe('BodyCompositionSection', () => {
     biceps: 35,
     quads: 55,
     notes: '',
-    recorded_at: '2026-07-01T12:00:00Z',
+    recorded_at: daysAgo(1),
     ...overrides,
   });
 
@@ -384,8 +376,8 @@ describe('BodyCompositionSection', () => {
 
   it('shows avg weight when readings exist', () => {
     const weightReadings = [
-      makeWeightReading({ id: 'w1', weight: 180, recorded_at: '2026-07-01T12:00:00Z' }),
-      makeWeightReading({ id: 'w2', weight: 178, recorded_at: '2026-07-02T12:00:00Z' }),
+      makeWeightReading({ id: 'w1', weight: 180 }),
+      makeWeightReading({ id: 'w2', weight: 178 }),
     ];
     render(<BodyCompositionSection weightReadings={weightReadings} circumferenceReadings={[]} onAddWeight={onAddWeight} onDeleteWeight={onDeleteWeight} onAddCircumference={onAddCircumference} onDeleteCircumference={onDeleteCircumference} />);
     const avgEl = screen.getByLabelText('Average weight');
@@ -395,30 +387,29 @@ describe('BodyCompositionSection', () => {
 
   it('filters avg weight when sinceDateWeight is set', () => {
     const weightReadings = [
-      makeWeightReading({ id: 'w1', weight: 190, recorded_at: '2026-06-01T12:00:00Z' }),
-      makeWeightReading({ id: 'w2', weight: 180, recorded_at: '2026-07-01T12:00:00Z' }),
+      makeWeightReading({ id: 'w1', weight: 190, recorded_at: daysAgo(40) }),
+      makeWeightReading({ id: 'w2', weight: 180, recorded_at: daysAgo(1) }),
     ];
     render(<BodyCompositionSection weightReadings={weightReadings} circumferenceReadings={[]} onAddWeight={onAddWeight} onDeleteWeight={onDeleteWeight} onAddCircumference={onAddCircumference} onDeleteCircumference={onDeleteCircumference} />);
-    fireEvent.change(screen.getByLabelText('Filter weight readings from date'), { target: { value: '2026-07-01' } });
+    fireEvent.change(screen.getByLabelText('Filter weight readings from date'), { target: { value: daysAgo(2).split('T')[0] } });
     const avgEl = screen.getByLabelText('Average weight');
     expect(avgEl.textContent).toContain('180');
     expect(avgEl.textContent).toContain('1 readings');
   });
 
   it('shows Avg since label for weight when sinceDateWeight is set', () => {
-    const weightReadings = [makeWeightReading({ id: 'w1', weight: 180, recorded_at: '2026-07-01T12:00:00Z' })];
+    const weightReadings = [makeWeightReading({ id: 'w1', weight: 180, recorded_at: daysAgo(1) })];
     render(<BodyCompositionSection weightReadings={weightReadings} circumferenceReadings={[]} onAddWeight={onAddWeight} onDeleteWeight={onDeleteWeight} onAddCircumference={onAddCircumference} onDeleteCircumference={onDeleteCircumference} />);
-    fireEvent.change(screen.getByLabelText('Filter weight readings from date'), { target: { value: '2026-07-01' } });
-    expect(screen.getByLabelText('Average weight').textContent).toContain('Avg since 2026-07-01');
+    const filterDate = daysAgo(2).split('T')[0];
+    fireEvent.change(screen.getByLabelText('Filter weight readings from date'), { target: { value: filterDate } });
+    expect(screen.getByLabelText('Average weight').textContent).toContain(`Avg since ${filterDate}`);
   });
 
   it('weight and circumference sinceDate states are independent', () => {
-    const weightReadings = [makeWeightReading({ id: 'w1', weight: 180, recorded_at: '2026-06-01T12:00:00Z' })];
-    const circumferenceReadings = [makeCircumferenceReading({ id: 'c1', recorded_at: '2026-06-01T12:00:00Z' })];
+    const weightReadings = [makeWeightReading({ id: 'w1', weight: 180, recorded_at: daysAgo(1) })];
+    const circumferenceReadings = [makeCircumferenceReading({ id: 'c1', recorded_at: daysAgo(1) })];
     render(<BodyCompositionSection weightReadings={weightReadings} circumferenceReadings={circumferenceReadings} onAddWeight={onAddWeight} onDeleteWeight={onDeleteWeight} onAddCircumference={onAddCircumference} onDeleteCircumference={onDeleteCircumference} />);
-    // Set weight filter to future date (filters out all weight readings)
-    fireEvent.change(screen.getByLabelText('Filter weight readings from date'), { target: { value: '2026-07-01' } });
-    // Circumference avg should still show (unaffected)
+    fireEvent.change(screen.getByLabelText('Filter weight readings from date'), { target: { value: '2029-01-01' } });
     expect(screen.queryByLabelText('Weight trend chart')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Circumference trend chart')).toBeInTheDocument();
   });

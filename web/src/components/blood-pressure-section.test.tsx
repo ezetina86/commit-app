@@ -16,7 +16,7 @@ const makeReading = (overrides: Partial<BloodPressureReading> = {}): BloodPressu
   systolic: 120,
   diastolic: 80,
   notes: '',
-  recorded_at: '2026-05-01T14:00:00Z',
+  recorded_at: new Date().toISOString(),
   ...overrides,
 });
 
@@ -254,10 +254,10 @@ describe('BloodPressureSection', () => {
   });
 
   it('hides chart when sinceDate filters out all readings', () => {
-    const readings = [makeReading({ id: 'r1', recorded_at: '2026-06-01T12:00:00Z' })];
+    const readings = [makeReading({ id: 'r1', recorded_at: new Date().toISOString() })];
     render(<BloodPressureSection readings={readings} onAdd={onAdd} onDelete={onDelete} />);
     expect(screen.getByLabelText('Blood pressure trend chart')).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Filter readings from date'), { target: { value: '2026-07-01' } });
+    fireEvent.change(screen.getByLabelText('Filter readings from date'), { target: { value: '2029-01-01' } });
     expect(screen.queryByLabelText('Blood pressure trend chart')).not.toBeInTheDocument();
   });
 });

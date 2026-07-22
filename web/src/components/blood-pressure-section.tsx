@@ -10,6 +10,13 @@ import {
   ResponsiveContainer,
   type TooltipProps,
 } from 'recharts';
+import { TimeRangeFilter } from './time-range-filter';
+import {
+  type TimeRangePreset,
+  filterReadingsByPreset,
+  calculateDynamicDomain,
+  calculatePeriodTrend,
+} from '../utils/chart-helpers';
 
 // Design token mirrors — Recharts SVG props require literal values, not CSS vars
 const TOKEN_ACCENT_4 = '#39D353';
@@ -78,11 +85,28 @@ export function BloodPressureSection({ readings, onAdd, onDelete }: BloodPressur
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
 
+  const [preset, setPreset] = useState<TimeRangePreset>('30d');
   const [sinceDate, setSinceDate] = useState('');
 
   const filteredReadings = useMemo(
-    () => sinceDate ? readings.filter(r => r.recorded_at >= sinceDate) : readings,
-    [readings, sinceDate]
+    () => filterReadingsByPreset(readings, (r) => r.recorded_at, preset, sinceDate),
+    [readings, preset, sinceDate]
+  );
+
+  const previousPeriodReadings = useMemo(() => {
+    if (preset !== '30d') return [];
+    const now = Date.now();
+    const start30 = now - 30 * 24 * 60 * 60 * 1000;
+    const start60 = now - 60 * 24 * 60 * 60 * 1000;
+    return readings.filter((r) => {
+      const t = new Date(r.recorded_at).getTime();
+      return t >= start60 && t < start30;
+    });
+  }, [readings, preset]);
+
+  const sysTrend = useMemo(
+    () => calculatePeriodTrend(filteredReadings.map(r => r.systolic), previousPeriodReadings.map(r => r.systolic)),
+    [filteredReadings, previousPeriodReadings]
   );
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -103,7 +127,6 @@ export function BloodPressureSection({ readings, onAdd, onDelete }: BloodPressur
     }
   };
 
-  // Chart data is chronological (oldest first for left-to-right rendering)
   const chartData = [...filteredReadings].reverse();
 
   const avgSystolic = filteredReadings.length > 0
@@ -113,9 +136,15 @@ export function BloodPressureSection({ readings, onAdd, onDelete }: BloodPressur
     ? Math.round(filteredReadings.reduce((sum, r) => sum + r.diastolic, 0) / filteredReadings.length)
     : null;
 
+  const yDomain = useMemo(() => {
+    const sysVals = filteredReadings.map(r => r.systolic);
+    const diaVals = filteredReadings.map(r => r.diastolic);
+    const allVals = [...sysVals, ...diaVals];
+    return calculateDynamicDomain(allVals, [80, 120], 0.08, 5);
+  }, [filteredReadings]);
+
   return (
     <section aria-label="Blood Pressure" className="w-full bg-surface p-6 rounded-sm border border-white/5">
-      {/* Delete confirmation modal */}
       {confirmDeleteId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
           <div className="bg-surface border border-white/10 p-8 rounded-sm shadow-2xl max-w-sm w-full">
@@ -144,44 +173,44 @@ export function BloodPressureSection({ readings, onAdd, onDelete }: BloodPressur
         </div>
       )}
 
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <h2 className="text-xl font-bold uppercase tracking-tight">
           <span className="text-accent-3 mr-2 select-none" aria-hidden="true">&gt;</span>Blood Pressure
         </h2>
-        <div className="flex items-center gap-2">
-          <input
-            type="date"
-            value={sinceDate}
-            onChange={(e) => setSinceDate(e.target.value)}
-            aria-label="Filter readings from date"
-            className="bg-background border-none text-text-primary text-xs px-2 py-1 rounded-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none"
-          />
-          {sinceDate && (
-            <button
-              type="button"
-              onClick={() => setSinceDate('')}
-              className="text-text-secondary hover:text-text-primary text-xs font-mono cursor-pointer transition-colors"
-            >
-              [clear]
-            </button>
-          )}
-        </div>
+        <TimeRangeFilter
+          activePreset={preset}
+          onPresetChange={setPreset}
+          customDate={sinceDate}
+          onCustomDateChange={setSinceDate}
+        />
       </div>
 
       {avgSystolic !== null && avgDiastolic !== null && (
-        <div className="flex items-baseline gap-3 mb-3" aria-label="Average blood pressure">
+        <div className="flex flex-wrap items-baseline gap-3 mb-3" aria-label="Average blood pressure">
           <span className="text-text-secondary text-xs font-mono uppercase tracking-widest">
-            {sinceDate ? `Avg since ${sinceDate}` : 'Avg'}
+            {preset === '30d' ? '30D Avg' : preset === '90d' ? '90D Avg' : preset === '1y' ? '1Y Avg' : sinceDate ? `Avg since ${sinceDate}` : 'Avg'}
           </span>
           <span className="text-3xl font-bold font-mono text-accent-4">{avgSystolic}</span>
           <span className="text-text-secondary text-lg font-mono">/</span>
           <span className="text-3xl font-bold font-mono text-accent-3">{avgDiastolic}</span>
           <span className="text-text-secondary text-xs font-mono">mmHg</span>
-          <span className="text-text-secondary text-xs font-mono ml-1">({filteredReadings.length} readings)</span>
+          <span className="text-text-secondary text-xs font-mono font-bold">({filteredReadings.length} readings)</span>
+
+          {preset === '30d' && previousPeriodReadings.length > 0 && sysTrend.delta !== 0 && (
+            <span
+              className={`text-xs font-mono font-bold px-2 py-0.5 rounded-sm border ${
+                sysTrend.delta <= 0
+                  ? 'text-accent-4 bg-accent-4/10 border-accent-4/30'
+                  : 'text-amber-400 bg-amber-400/10 border-amber-400/30'
+              }`}
+              aria-label="Period-over-period trend"
+            >
+              {sysTrend.delta > 0 ? '▲' : '▼'} Sys {Math.abs(sysTrend.delta)} mmHg vs prev 30d
+            </span>
+          )}
         </div>
       )}
 
-      {/* Add form */}
       <form onSubmit={handleSubmit} className="flex flex-wrap gap-2 mb-2" aria-label="Log blood pressure reading">
         <input
           type="number"
@@ -190,7 +219,7 @@ export function BloodPressureSection({ readings, onAdd, onDelete }: BloodPressur
           placeholder="Systolic"
           aria-label="Systolic"
           name="bp-systolic"
-          className="w-28 bg-background border-none text-text-primary px-3 py-2 rounded-sm text-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none placeholder:text-text-secondary/50"
+          className="w-28 bg-background border-none text-text-primary px-3 py-2 rounded-sm text-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none placeholder:text-text-secondary/50 font-mono"
         />
         <input
           type="number"
@@ -199,7 +228,7 @@ export function BloodPressureSection({ readings, onAdd, onDelete }: BloodPressur
           placeholder="Diastolic"
           aria-label="Diastolic"
           name="bp-diastolic"
-          className="w-28 bg-background border-none text-text-primary px-3 py-2 rounded-sm text-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none placeholder:text-text-secondary/50"
+          className="w-28 bg-background border-none text-text-primary px-3 py-2 rounded-sm text-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none placeholder:text-text-secondary/50 font-mono"
         />
         <input
           type="text"
@@ -209,7 +238,7 @@ export function BloodPressureSection({ readings, onAdd, onDelete }: BloodPressur
           aria-label="Notes"
           name="bp-notes"
           autoComplete="off"
-          className="flex-1 min-w-[140px] bg-background border-none text-text-primary px-3 py-2 rounded-sm text-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none placeholder:text-text-secondary/50"
+          className="flex-1 min-w-[140px] bg-background border-none text-text-primary px-3 py-2 rounded-sm text-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none placeholder:text-text-secondary/50 font-mono"
         />
         <button
           type="submit"
@@ -223,11 +252,10 @@ export function BloodPressureSection({ readings, onAdd, onDelete }: BloodPressur
         <p role="alert" className="text-red-400 text-xs font-mono mb-4 pl-1">{formError}</p>
       )}
 
-      {/* Chart */}
       {filteredReadings.length > 0 && (
         <div className="mt-6 mb-6" aria-label="Blood pressure trend chart">
-          <ResponsiveContainer width="100%" height={180}>
-            <LineChart data={chartData} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
+          <ResponsiveContainer width="100%" height={200}>
+            <LineChart data={chartData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={TOKEN_CHART_GRID} />
               <XAxis
                 dataKey="recorded_at"
@@ -237,10 +265,7 @@ export function BloodPressureSection({ readings, onAdd, onDelete }: BloodPressur
                 tickLine={false}
               />
               <YAxis
-                domain={([dataMin, dataMax]: [number, number]) => [
-                  Math.min(dataMin, 70) - 5,
-                  Math.max(dataMax, 130) + 5,
-                ]}
+                domain={yDomain}
                 tick={{ fill: TOKEN_TEXT_SECONDARY, fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }}
                 axisLine={false}
                 tickLine={false}
@@ -281,7 +306,6 @@ export function BloodPressureSection({ readings, onAdd, onDelete }: BloodPressur
         </div>
       )}
 
-      {/* Readings log */}
       {readings.length === 0 ? (
         <p className="text-text-secondary text-xs uppercase tracking-widest py-4">No Readings Logged</p>
       ) : (

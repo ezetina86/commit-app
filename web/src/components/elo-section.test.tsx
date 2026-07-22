@@ -15,7 +15,7 @@ const makeReading = (overrides: Partial<EloReading> = {}): EloReading => ({
   platform: 'chesscom',
   rating: 700,
   notes: '',
-  recorded_at: '2026-05-01T14:00:00Z',
+  recorded_at: new Date().toISOString(),
   ...overrides,
 });
 
@@ -67,7 +67,6 @@ describe('EloSection', () => {
     await user.click(screen.getByRole('button', { name: /show history/i }));
     const list = screen.getByRole('list', { name: /elo readings/i });
     expect(list).toHaveTextContent('720');
-    // duolingo reading is filtered out on chess.com tab
     expect(list).not.toHaveTextContent('650');
   });
 
@@ -212,7 +211,6 @@ describe('EloSection', () => {
       makeReading({ id: 'e3', platform: 'duolingo', rating: 650 }),
     ];
     render(<EloSection readings={readings} target={800} onAdd={onAdd} onDelete={onDelete} onTargetChange={onTargetChange} />);
-    // Default chess.com tab: 2 readings
     expect(screen.getByRole('button', { name: /show history \(2\)/i })).toBeInTheDocument();
   });
 
@@ -223,8 +221,8 @@ describe('EloSection', () => {
 
   it('shows avg rating when readings exist', () => {
     const readings = [
-      makeReading({ id: 'r1', platform: 'chesscom', rating: 700, recorded_at: '2026-06-01T12:00:00Z' }),
-      makeReading({ id: 'r2', platform: 'chesscom', rating: 900, recorded_at: '2026-07-01T12:00:00Z' }),
+      makeReading({ id: 'r1', platform: 'chesscom', rating: 700, recorded_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString() }),
+      makeReading({ id: 'r2', platform: 'chesscom', rating: 900, recorded_at: new Date().toISOString() }),
     ];
     render(<EloSection readings={readings} target={800} onAdd={onAdd} onDelete={onDelete} onTargetChange={onTargetChange} />);
     const avgEl = screen.getByLabelText('Average ELO rating');
@@ -265,10 +263,10 @@ describe('EloSection', () => {
   });
 
   it('hides chart when sinceDate filters out all readings', () => {
-    const readings = [makeReading({ id: 'r1', platform: 'chesscom', rating: 800, recorded_at: '2026-06-01T12:00:00Z' })];
+    const readings = [makeReading({ id: 'r1', platform: 'chesscom', rating: 800, recorded_at: new Date().toISOString() })];
     render(<EloSection readings={readings} target={800} onAdd={onAdd} onDelete={onDelete} onTargetChange={onTargetChange} />);
     expect(screen.getByLabelText('Chess ELO trend chart')).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Filter ratings from date'), { target: { value: '2026-07-01' } });
+    fireEvent.change(screen.getByLabelText('Filter ratings from date'), { target: { value: '2029-01-01' } });
     expect(screen.queryByLabelText('Chess ELO trend chart')).not.toBeInTheDocument();
   });
 
