@@ -44,7 +44,7 @@ export function calculateDynamicDomain(
   const padding = Math.max(range * paddingPercent, roundStep);
 
   let low = Math.floor((min - padding) / roundStep) * roundStep;
-  let high = Math.ceil((max + padding) / roundStep) * roundStep;
+  const high = Math.ceil((max + padding) / roundStep) * roundStep;
 
   if (low < 0 && min >= 0) low = 0;
 
