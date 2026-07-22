@@ -5,6 +5,7 @@ interface TimeRangeFilterProps {
   onPresetChange: (preset: TimeRangePreset) => void;
   customDate: string;
   onCustomDateChange: (date: string) => void;
+  customDateAriaLabel?: string;
 }
 
 const PRESETS: { label: string; value: TimeRangePreset }[] = [
@@ -19,6 +20,7 @@ export function TimeRangeFilter({
   onPresetChange,
   customDate,
   onCustomDateChange,
+  customDateAriaLabel = 'Filter readings from date',
 }: TimeRangeFilterProps) {
   return (
     <div className="flex items-center gap-1 font-mono text-xs" aria-label="Time range filter controls">
@@ -47,7 +49,7 @@ export function TimeRangeFilter({
           onCustomDateChange(e.target.value);
           if (e.target.value) onPresetChange('custom');
         }}
-        aria-label="Filter readings from date"
+        aria-label={customDateAriaLabel}
         className={`bg-background border-none text-xs px-2 py-0.5 rounded-sm outline-none ${
           activePreset === 'custom' ? 'text-accent-4 font-bold ring-1 ring-accent-4' : 'text-text-secondary'
         }`}

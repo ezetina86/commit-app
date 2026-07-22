@@ -9,6 +9,13 @@ import {
   ResponsiveContainer,
   type TooltipProps,
 } from 'recharts';
+import { TimeRangeFilter } from './time-range-filter';
+import {
+  type TimeRangePreset,
+  filterReadingsByPreset,
+  calculateDynamicDomain,
+  calculatePeriodTrend,
+} from '../utils/chart-helpers';
 
 // Design token mirrors — Recharts SVG props require literal values, not CSS vars
 const ABDOMEN_COLOR = '#7D8590';
@@ -122,16 +129,18 @@ export function BodyCompositionSection({
   const [showCircumferenceHistory, setShowCircumferenceHistory] = useState(false);
   const [confirmDeleteWeightId, setConfirmDeleteWeightId] = useState<string | null>(null);
   const [confirmDeleteCircumferenceId, setConfirmDeleteCircumferenceId] = useState<string | null>(null);
+
+  const [weightPreset, setWeightPreset] = useState<TimeRangePreset>('30d');
   const [sinceDateWeight, setSinceDateWeight] = useState('');
+
+  const [circPreset, setCircPreset] = useState<TimeRangePreset>('30d');
   const [sinceDateCircumference, setSinceDateCircumference] = useState('');
 
-  // ponytail: oldest-vs-latest trend; upgrade to linear regression if clinical accuracy needed
   const alertState = useMemo((): AlertState => {
     const now = Date.now();
     const ms7 = 7 * 24 * 60 * 60 * 1000;
     const ms14 = 14 * 24 * 60 * 60 * 1000;
 
-    // Sort ASC by recorded_at for all windows
     const weightLast7 = weightReadings
       .filter(r => now - new Date(r.recorded_at).getTime() <= ms7)
       .sort((a, b) => new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime());
@@ -140,7 +149,6 @@ export function BodyCompositionSection({
       .filter(r => now - new Date(r.recorded_at).getTime() <= ms14)
       .sort((a, b) => new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime());
 
-    // 1. catabolism_warning
     if (weightLast7.length >= 2) {
       const oldest = weightLast7[0];
       const latest = weightLast7[weightLast7.length - 1];
@@ -148,7 +156,6 @@ export function BodyCompositionSection({
       if (delta < -1.5) return 'catabolism_warning';
     }
 
-    // 2. protein_deficit_warning
     if (circumLast14.length >= 2) {
       const oldestC = circumLast14[0];
       const latestC = circumLast14[circumLast14.length - 1];
@@ -161,7 +168,6 @@ export function BodyCompositionSection({
         if (weightDelta7 < -1.0) return 'protein_deficit_warning';
       }
 
-      // 3. optimal
       if (
         latestC.abdomen < oldestC.abdomen &&
         latestC.biceps >= oldestC.biceps &&
@@ -173,13 +179,29 @@ export function BodyCompositionSection({
   }, [weightReadings, circumferenceReadings]);
 
   const filteredWeightReadings = useMemo(
-    () => sinceDateWeight ? weightReadings.filter(r => r.recorded_at >= sinceDateWeight) : weightReadings,
-    [weightReadings, sinceDateWeight]
+    () => filterReadingsByPreset(weightReadings, (r) => r.recorded_at, weightPreset, sinceDateWeight),
+    [weightReadings, weightPreset, sinceDateWeight]
+  );
+
+  const prevWeightReadings = useMemo(() => {
+    if (weightPreset !== '30d') return [];
+    const now = Date.now();
+    const start30 = now - 30 * 24 * 60 * 60 * 1000;
+    const start60 = now - 60 * 24 * 60 * 60 * 1000;
+    return weightReadings.filter((r) => {
+      const t = new Date(r.recorded_at).getTime();
+      return t >= start60 && t < start30;
+    });
+  }, [weightReadings, weightPreset]);
+
+  const weightTrend = useMemo(
+    () => calculatePeriodTrend(filteredWeightReadings.map(r => r.weight), prevWeightReadings.map(r => r.weight)),
+    [filteredWeightReadings, prevWeightReadings]
   );
 
   const filteredCircumferenceReadings = useMemo(
-    () => sinceDateCircumference ? circumferenceReadings.filter(r => r.recorded_at >= sinceDateCircumference) : circumferenceReadings,
-    [circumferenceReadings, sinceDateCircumference]
+    () => filterReadingsByPreset(circumferenceReadings, (r) => r.recorded_at, circPreset, sinceDateCircumference),
+    [circumferenceReadings, circPreset, sinceDateCircumference]
   );
 
   const handleWeightSubmit = async (e: React.FormEvent) => {
@@ -225,6 +247,16 @@ export function BodyCompositionSection({
     ? Math.round(filteredWeightReadings.reduce((sum, r) => sum + r.weight, 0) / filteredWeightReadings.length * 10) / 10
     : null;
 
+  const weightDomain = useMemo(() => {
+    const vals = filteredWeightReadings.map(r => r.weight);
+    return calculateDynamicDomain(vals, [], 0.05, 1);
+  }, [filteredWeightReadings]);
+
+  const circDomain = useMemo(() => {
+    const vals = filteredCircumferenceReadings.flatMap(r => [r.abdomen, r.biceps, r.quads]);
+    return calculateDynamicDomain(vals, [], 0.05, 1);
+  }, [filteredCircumferenceReadings]);
+
   const avgAbdomen = filteredCircumferenceReadings.length > 0
     ? Math.round(filteredCircumferenceReadings.reduce((sum, r) => sum + r.abdomen, 0) / filteredCircumferenceReadings.length * 10) / 10
     : null;
@@ -252,7 +284,6 @@ export function BodyCompositionSection({
 
   return (
     <section aria-label="Body Composition" className="w-full bg-surface p-6 rounded-sm border border-white/5">
-      {/* Weight delete confirm modal */}
       {confirmDeleteWeightId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
           <div className="bg-surface border border-white/10 p-8 rounded-sm shadow-2xl max-w-sm w-full">
@@ -281,7 +312,6 @@ export function BodyCompositionSection({
         </div>
       )}
 
-      {/* Circumference delete confirm modal */}
       {confirmDeleteCircumferenceId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
           <div className="bg-surface border border-white/10 p-8 rounded-sm shadow-2xl max-w-sm w-full">
@@ -310,12 +340,10 @@ export function BodyCompositionSection({
         </div>
       )}
 
-      {/* Section header */}
       <h2 className="text-xl font-bold uppercase tracking-tight mb-4">
         <span className="text-accent-3 mr-2 select-none" aria-hidden="true">&gt;</span>Body Composition
       </h2>
 
-      {/* Alert banner */}
       {alertState !== null && (
         <div
           role="alert"
@@ -328,36 +356,38 @@ export function BodyCompositionSection({
 
       {/* ── Weight subsection ── */}
       <div className="mb-8">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
           <h3 className="text-sm font-bold uppercase tracking-widest text-text-secondary">Weight Log</h3>
-          <div className="flex items-center gap-2">
-            <input
-              type="date"
-              value={sinceDateWeight}
-              onChange={(e) => setSinceDateWeight(e.target.value)}
-              aria-label="Filter weight readings from date"
-              className="bg-background border-none text-text-primary text-xs px-2 py-1 rounded-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none"
-            />
-            {sinceDateWeight && (
-              <button
-                type="button"
-                onClick={() => setSinceDateWeight('')}
-                className="text-text-secondary hover:text-text-primary text-xs font-mono cursor-pointer transition-colors"
-              >
-                [clear]
-              </button>
-            )}
-          </div>
+          <TimeRangeFilter
+            activePreset={weightPreset}
+            onPresetChange={setWeightPreset}
+            customDate={sinceDateWeight}
+            onCustomDateChange={setSinceDateWeight}
+            customDateAriaLabel="Filter weight readings from date"
+          />
         </div>
 
         {avgWeight !== null && (
-          <div className="flex items-baseline gap-3 mb-3" aria-label="Average weight">
+          <div className="flex flex-wrap items-baseline gap-3 mb-3" aria-label="Average weight">
             <span className="text-text-secondary text-xs font-mono uppercase tracking-widest">
-              {sinceDateWeight ? `Avg since ${sinceDateWeight}` : 'Avg'}
+              {weightPreset === '30d' ? '30D Avg' : weightPreset === '90d' ? '90D Avg' : weightPreset === '1y' ? '1Y Avg' : sinceDateWeight ? `Avg since ${sinceDateWeight}` : 'Avg'}
             </span>
             <span className="text-3xl font-bold font-mono text-accent-4">{avgWeight}</span>
             <span className="text-text-secondary text-xs font-mono">lbs</span>
-            <span className="text-text-secondary text-xs font-mono ml-1">({filteredWeightReadings.length} readings)</span>
+            <span className="text-text-secondary text-xs font-mono font-bold">({filteredWeightReadings.length} readings)</span>
+
+            {weightPreset === '30d' && prevWeightReadings.length > 0 && weightTrend.delta !== 0 && (
+              <span
+                className={`text-xs font-mono font-bold px-2 py-0.5 rounded-sm border ${
+                  weightTrend.delta < 0
+                    ? 'text-accent-4 bg-accent-4/10 border-accent-4/30'
+                    : 'text-amber-400 bg-amber-400/10 border-amber-400/30'
+                }`}
+                aria-label="Period-over-period weight trend"
+              >
+                {weightTrend.delta > 0 ? '▲' : '▼'} {Math.abs(weightTrend.delta)} lbs ({weightTrend.percent > 0 ? '+' : ''}{weightTrend.percent}%) vs prev 30d
+              </span>
+            )}
           </div>
         )}
 
@@ -370,7 +400,7 @@ export function BodyCompositionSection({
             aria-label="Weight"
             name="weight-value"
             step="0.1"
-            className="w-36 bg-background border-none text-text-primary px-3 py-2 rounded-sm text-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none placeholder:text-text-secondary/50"
+            className="w-36 bg-background border-none text-text-primary px-3 py-2 rounded-sm text-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none placeholder:text-text-secondary/50 font-mono"
           />
           <input
             type="date"
@@ -378,7 +408,7 @@ export function BodyCompositionSection({
             onChange={(e) => setWeightForm(f => ({ ...f, date: e.target.value }))}
             aria-label="Date"
             name="weight-date"
-            className="bg-background border-none text-text-primary px-3 py-2 rounded-sm text-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none"
+            className="bg-background border-none text-text-primary px-3 py-2 rounded-sm text-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none font-mono"
           />
           <input
             type="text"
@@ -388,7 +418,7 @@ export function BodyCompositionSection({
             aria-label="Notes"
             name="weight-notes"
             autoComplete="off"
-            className="flex-1 min-w-[140px] bg-background border-none text-text-primary px-3 py-2 rounded-sm text-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none placeholder:text-text-secondary/50"
+            className="flex-1 min-w-[140px] bg-background border-none text-text-primary px-3 py-2 rounded-sm text-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none placeholder:text-text-secondary/50 font-mono"
           />
           <button
             type="submit"
@@ -404,8 +434,8 @@ export function BodyCompositionSection({
 
         {filteredWeightReadings.length > 0 && (
           <div className="mt-6 mb-6" aria-label="Weight trend chart">
-            <ResponsiveContainer width="100%" height={180}>
-              <LineChart data={weightChartData} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
+            <ResponsiveContainer width="100%" height={200}>
+              <LineChart data={weightChartData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={TOKEN_CHART_GRID} />
                 <XAxis
                   dataKey="recorded_at"
@@ -415,6 +445,7 @@ export function BodyCompositionSection({
                   tickLine={false}
                 />
                 <YAxis
+                  domain={weightDomain}
                   tick={{ fill: TOKEN_TEXT_SECONDARY, fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }}
                   axisLine={false}
                   tickLine={false}
@@ -475,32 +506,21 @@ export function BodyCompositionSection({
 
       {/* ── Circumference subsection ── */}
       <div>
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
           <h3 className="text-sm font-bold uppercase tracking-widest text-text-secondary">Circumference Log</h3>
-          <div className="flex items-center gap-2">
-            <input
-              type="date"
-              value={sinceDateCircumference}
-              onChange={(e) => setSinceDateCircumference(e.target.value)}
-              aria-label="Filter circumference readings from date"
-              className="bg-background border-none text-text-primary text-xs px-2 py-1 rounded-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none"
-            />
-            {sinceDateCircumference && (
-              <button
-                type="button"
-                onClick={() => setSinceDateCircumference('')}
-                className="text-text-secondary hover:text-text-primary text-xs font-mono cursor-pointer transition-colors"
-              >
-                [clear]
-              </button>
-            )}
-          </div>
+          <TimeRangeFilter
+            activePreset={circPreset}
+            onPresetChange={setCircPreset}
+            customDate={sinceDateCircumference}
+            onCustomDateChange={setSinceDateCircumference}
+            customDateAriaLabel="Filter circumference readings from date"
+          />
         </div>
 
         {avgAbdomen !== null && (
-          <div className="flex items-baseline gap-3 mb-3" aria-label="Average circumference">
+          <div className="flex flex-wrap items-baseline gap-3 mb-3" aria-label="Average circumference">
             <span className="text-text-secondary text-xs font-mono uppercase tracking-widest">
-              {sinceDateCircumference ? `Avg since ${sinceDateCircumference}` : 'Avg'}
+              {circPreset === '30d' ? '30D Avg' : circPreset === '90d' ? '90D Avg' : circPreset === '1y' ? '1Y Avg' : sinceDateCircumference ? `Avg since ${sinceDateCircumference}` : 'Avg'}
             </span>
             <span style={{ color: ABDOMEN_COLOR }} className="text-xl font-bold font-mono">{avgAbdomen}</span>
             <span className="text-text-secondary text-xs">/</span>
@@ -508,7 +528,7 @@ export function BodyCompositionSection({
             <span className="text-text-secondary text-xs">/</span>
             <span style={{ color: QUADS_COLOR }} className="text-xl font-bold font-mono">{avgQuads}</span>
             <span className="text-text-secondary text-xs font-mono">cm</span>
-            <span className="text-text-secondary text-xs font-mono ml-1">({filteredCircumferenceReadings.length} readings)</span>
+            <span className="text-text-secondary text-xs font-mono font-bold">({filteredCircumferenceReadings.length} readings)</span>
           </div>
         )}
 
@@ -521,7 +541,7 @@ export function BodyCompositionSection({
             aria-label="Abdomen"
             name="circ-abdomen"
             step="0.1"
-            className="w-32 bg-background border-none text-text-primary px-3 py-2 rounded-sm text-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none placeholder:text-text-secondary/50"
+            className="w-32 bg-background border-none text-text-primary px-3 py-2 rounded-sm text-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none placeholder:text-text-secondary/50 font-mono"
           />
           <input
             type="number"
@@ -531,7 +551,7 @@ export function BodyCompositionSection({
             aria-label="Biceps"
             name="circ-biceps"
             step="0.1"
-            className="w-28 bg-background border-none text-text-primary px-3 py-2 rounded-sm text-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none placeholder:text-text-secondary/50"
+            className="w-28 bg-background border-none text-text-primary px-3 py-2 rounded-sm text-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none placeholder:text-text-secondary/50 font-mono"
           />
           <input
             type="number"
@@ -541,7 +561,7 @@ export function BodyCompositionSection({
             aria-label="Quads"
             name="circ-quads"
             step="0.1"
-            className="w-28 bg-background border-none text-text-primary px-3 py-2 rounded-sm text-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none placeholder:text-text-secondary/50"
+            className="w-28 bg-background border-none text-text-primary px-3 py-2 rounded-sm text-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none placeholder:text-text-secondary/50 font-mono"
           />
           <input
             type="date"
@@ -549,7 +569,7 @@ export function BodyCompositionSection({
             onChange={(e) => setCircumferenceForm(f => ({ ...f, date: e.target.value }))}
             aria-label="Date"
             name="circ-date"
-            className="bg-background border-none text-text-primary px-3 py-2 rounded-sm text-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none"
+            className="bg-background border-none text-text-primary px-3 py-2 rounded-sm text-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none font-mono"
           />
           <input
             type="text"
@@ -559,7 +579,7 @@ export function BodyCompositionSection({
             aria-label="Notes"
             name="circ-notes"
             autoComplete="off"
-            className="flex-1 min-w-[140px] bg-background border-none text-text-primary px-3 py-2 rounded-sm text-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none placeholder:text-text-secondary/50"
+            className="flex-1 min-w-[140px] bg-background border-none text-text-primary px-3 py-2 rounded-sm text-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none placeholder:text-text-secondary/50 font-mono"
           />
           <button
             type="submit"
@@ -575,8 +595,8 @@ export function BodyCompositionSection({
 
         {filteredCircumferenceReadings.length > 0 && (
           <div className="mt-6 mb-6" aria-label="Circumference trend chart">
-            <ResponsiveContainer width="100%" height={180}>
-              <LineChart data={circumferenceChartData} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
+            <ResponsiveContainer width="100%" height={200}>
+              <LineChart data={circumferenceChartData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={TOKEN_CHART_GRID} />
                 <XAxis
                   dataKey="recorded_at"
@@ -586,6 +606,7 @@ export function BodyCompositionSection({
                   tickLine={false}
                 />
                 <YAxis
+                  domain={circDomain}
                   tick={{ fill: TOKEN_TEXT_SECONDARY, fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }}
                   axisLine={false}
                   tickLine={false}
