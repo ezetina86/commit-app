@@ -16,6 +16,10 @@ import {
   calculateDynamicDomain,
   calculatePeriodTrend,
 } from '../utils/chart-helpers';
+import {
+  generateBodyCompositionMarkdown,
+  downloadMarkdownFile,
+} from '../utils/export-body-composition';
 
 // Design token mirrors — Recharts SVG props require literal values, not CSS vars
 const ABDOMEN_COLOR = '#7D8590';
@@ -340,9 +344,23 @@ export function BodyCompositionSection({
         </div>
       )}
 
-      <h2 className="text-xl font-bold uppercase tracking-tight mb-4">
-        <span className="text-accent-3 mr-2 select-none" aria-hidden="true">&gt;</span>Body Composition
-      </h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-bold uppercase tracking-tight">
+          <span className="text-accent-3 mr-2 select-none" aria-hidden="true">&gt;</span>Body Composition
+        </h2>
+        <button
+          type="button"
+          disabled={weightReadings.length === 0 && circumferenceReadings.length === 0}
+          onClick={() => {
+            const md = generateBodyCompositionMarkdown(weightReadings, circumferenceReadings);
+            downloadMarkdownFile(md);
+          }}
+          className="text-xs font-mono font-bold uppercase tracking-wider px-3 py-1.5 rounded-sm border border-white/10 text-text-secondary hover:text-text-primary hover:border-white/25 transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+          aria-label="Export body composition data as Markdown"
+        >
+          ↓ Export MD
+        </button>
+      </div>
 
       {alertState !== null && (
         <div
