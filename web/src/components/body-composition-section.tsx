@@ -106,6 +106,7 @@ export function BodyCompositionSection({
   const [showCircumferenceHistory, setShowCircumferenceHistory] = useState(false);
   const [confirmDeleteWeightId, setConfirmDeleteWeightId] = useState<string | null>(null);
   const [confirmDeleteCircumferenceId, setConfirmDeleteCircumferenceId] = useState<string | null>(null);
+  const [confirmDeleteBodyFatId, setConfirmDeleteBodyFatId] = useState<string | null>(null);
 
   const [weightPreset, setWeightPreset] = useState<TimeRangePreset>('30d');
   const [sinceDateWeight, setSinceDateWeight] = useState('');
@@ -358,13 +359,43 @@ export function BodyCompositionSection({
         </div>
       )}
 
+      {/* Fix 1: BF% delete confirmation modal */}
+      {confirmDeleteBodyFatId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+          <div className="bg-surface border border-white/10 p-8 rounded-sm shadow-2xl max-w-sm w-full">
+            <h3 className="text-xl font-bold uppercase tracking-tight text-red-500 mb-2">Delete Reading</h3>
+            <p className="text-text-secondary mb-6 text-sm">
+              Are you sure you want to permanently delete this body fat reading?
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setConfirmDeleteBodyFatId(null)}
+                className="px-4 py-2 text-xs font-bold uppercase tracking-wider text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  void onDeleteBodyFat(confirmDeleteBodyFatId);
+                  setConfirmDeleteBodyFatId(null);
+                }}
+                className="bg-red-900/30 hover:bg-red-600 text-red-500 hover:text-white px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
+              >
+                Confirm Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-bold uppercase tracking-tight">
           <span className="text-accent-3 mr-2 select-none" aria-hidden="true">&gt;</span>Body Composition
         </h2>
         <button
           type="button"
-          disabled={weightReadings.length === 0 && circumferenceReadings.length === 0}
+          // Fix 2: also disabled when only BF readings exist
+          disabled={weightReadings.length === 0 && circumferenceReadings.length === 0 && bodyFatReadings.length === 0}
           onClick={() => {
             const md = generateBodyCompositionMarkdown(weightReadings, circumferenceReadings, bodyFatReadings, userProfile);
             downloadMarkdownFile(md);
@@ -385,6 +416,85 @@ export function BodyCompositionSection({
           {alertConfig[alertState].message}
         </div>
       )}
+
+      {/* Fix 4: Profile row renders first */}
+      <div className="flex items-center gap-3 mb-4">
+        {userProfile && !editingProfile ? (
+          <>
+            <span className="text-xs font-mono text-text-secondary uppercase tracking-widest">
+              Height: <span className="text-text-primary font-bold">{userProfile.height_cm} cm</span>
+            </span>
+            <button
+              onClick={() => { setEditingProfile(true); setHeightInput(String(userProfile.height_cm)); }}
+              className="text-xs font-mono text-text-secondary hover:text-text-primary uppercase tracking-widest cursor-pointer transition-colors"
+            >
+              [Edit]
+            </button>
+          </>
+        ) : (
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              const h = Number(heightInput);
+              if (!h || h <= 0) return;
+              await onSaveProfile(h);
+              setEditingProfile(false);
+            }}
+            className="flex items-center gap-2"
+          >
+            <input
+              type="number"
+              min="1"
+              step="0.1"
+              value={heightInput}
+              onChange={e => setHeightInput(e.target.value)}
+              placeholder="Height (cm)"
+              className="w-32 bg-surface border border-white/10 text-text-primary text-xs px-2 py-1 rounded-sm outline-none focus-visible:ring-1 focus-visible:ring-accent-4 font-mono"
+              autoFocus
+            />
+            <button type="submit" className="cursor-pointer bg-accent-4 text-background px-3 py-1 rounded-sm text-xs font-bold uppercase tracking-wider hover:bg-white transition-colors">
+              Save
+            </button>
+            {editingProfile && (
+              <button type="button" onClick={() => setEditingProfile(false)} className="cursor-pointer text-xs font-mono text-text-secondary hover:text-text-primary uppercase transition-colors">
+                Cancel
+              </button>
+            )}
+          </form>
+        )}
+      </div>
+
+      {/* Fix 4: KPI row renders second */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        <KpiCard
+          label="BF% Navy"
+          value={navyBF !== null ? `${Math.round(navyBF * 10) / 10}%` : null}
+          delta={null}
+          deltaPositive={null}
+          improvementDirection="down"
+        />
+        <KpiCard
+          label="BF% Samsung"
+          value={latestBF ? `${latestBF.body_fat_pct}%` : null}
+          delta={null}
+          deltaPositive={null}
+          improvementDirection="down"
+        />
+        <KpiCard
+          label="W/H Ratio"
+          value={whRatio !== null ? String(Math.round(whRatio * 100) / 100) : null}
+          delta={null}
+          deltaPositive={null}
+          improvementDirection="down"
+        />
+        <KpiCard
+          label="Weight"
+          value={latestWeight ? `${latestWeight.weight} lbs` : null}
+          delta={weightDelta30d !== null ? `${weightDelta30d > 0 ? '+' : ''}${weightDelta30d} vs 30d avg` : null}
+          deltaPositive={weightDelta30d !== null ? weightDelta30d > 0 : null}
+          improvementDirection="down"
+        />
+      </div>
 
       {/* ── Weight subsection ── */}
       <div className="mb-8">
@@ -536,55 +646,65 @@ export function BodyCompositionSection({
         )}
       </div>
 
-      {/* ── Body Fat % section (Step 7) ── */}
-      {bodyFatReadings.length > 0 && (
-        <section className="border-t border-white/5 pt-6 mt-2 mb-8">
-          <h3 className="text-xs font-mono uppercase tracking-widest text-text-secondary mb-4">Body Fat %</h3>
-          {/* Single chart */}
-          <div style={{ height: 160 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={[...bodyFatReadings].reverse()} margin={{ top: 8, right: 8, bottom: 8, left: 0 }}>
-                <CartesianGrid stroke={TOKEN_CHART_GRID} strokeDasharray="2 2" />
-                <XAxis dataKey="recorded_at" tick={false} axisLine={false} tickLine={false} />
-                <YAxis domain={['auto', 'auto']} tick={{ fill: TOKEN_TEXT_SECONDARY, fontSize: 10, fontFamily: 'inherit' }} axisLine={false} tickLine={false} width={32} />
-                <Tooltip
-                  contentStyle={{ background: '#161B22', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 2, fontSize: 11, fontFamily: 'inherit' }}
-                  labelFormatter={(_, p) => p[0] ? formatCentral((p[0].payload as BodyFatReading).recorded_at) : ''}
-                  formatter={(v: number) => [`${v}%`, 'BF%']}
-                />
-                <Line type="monotone" dataKey="body_fat_pct" stroke={WEIGHT_COLOR} strokeWidth={2} dot={false} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-          {/* Log form */}
-          <form
-            onSubmit={async (e) => {
-              e.preventDefault();
-              const pct = Number(bfForm.pct);
-              if (!pct || pct <= 0) return;
-              await onAddBodyFat(pct, bfForm.notes, bfForm.date);
-              setBfForm({ pct: '', notes: '', date: new Intl.DateTimeFormat('en-CA').format(new Date()) });
-            }}
-            className="flex flex-wrap gap-2 mt-4"
-          >
-            <input type="number" min="0" step="0.1" value={bfForm.pct} onChange={e => setBfForm(f => ({ ...f, pct: e.target.value }))} placeholder="BF%" className="w-20 bg-surface border border-white/10 text-text-primary text-xs px-2 py-1 rounded-sm outline-none focus-visible:ring-1 focus-visible:ring-accent-4 font-mono" />
-            <input type="date" value={bfForm.date} onChange={e => setBfForm(f => ({ ...f, date: e.target.value }))} className="bg-surface border border-white/10 text-text-primary text-xs px-2 py-1 rounded-sm outline-none focus-visible:ring-1 focus-visible:ring-accent-4 font-mono" />
-            <input type="text" value={bfForm.notes} onChange={e => setBfForm(f => ({ ...f, notes: e.target.value }))} placeholder="Notes" className="flex-1 min-w-[120px] bg-surface border border-white/10 text-text-primary text-xs px-2 py-1 rounded-sm outline-none focus-visible:ring-1 focus-visible:ring-accent-4 font-mono" />
-            <button type="submit" className="cursor-pointer bg-accent-4 text-background px-4 py-1 rounded-sm text-xs font-bold uppercase tracking-wider hover:bg-white transition-colors">Log</button>
-          </form>
-          {/* History list */}
-          <ul className="mt-3 space-y-1 max-h-40 overflow-y-auto">
-            {bodyFatReadings.map(r => (
-              <li key={r.id} className="flex items-center justify-between text-xs font-mono text-text-secondary">
-                <span>{formatCentral(r.recorded_at)}</span>
-                <span className="text-text-primary font-bold">{r.body_fat_pct}%</span>
-                <span className="truncate max-w-[100px] text-text-secondary">{r.notes}</span>
-                <button onClick={() => onDeleteBodyFat(r.id)} className="cursor-pointer text-red-400 hover:text-red-300 uppercase text-[10px] tracking-widest transition-colors">Delete</button>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      {/* ── Body Fat % section ── */}
+      {/* Fix 3: log form always visible; chart+history gated on readings */}
+      <section className="border-t border-white/5 pt-6 mt-2 mb-8">
+        <h3 className="text-xs font-mono uppercase tracking-widest text-text-secondary mb-4">Body Fat %</h3>
+        {bodyFatReadings.length > 0 && (
+          <>
+            <div style={{ height: 160 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={[...bodyFatReadings].reverse()} margin={{ top: 8, right: 8, bottom: 8, left: 0 }}>
+                  <CartesianGrid stroke={TOKEN_CHART_GRID} strokeDasharray="2 2" />
+                  <XAxis dataKey="recorded_at" tick={false} axisLine={false} tickLine={false} />
+                  <YAxis domain={['auto', 'auto']} tick={{ fill: TOKEN_TEXT_SECONDARY, fontSize: 10, fontFamily: 'inherit' }} axisLine={false} tickLine={false} width={32} />
+                  <Tooltip
+                    contentStyle={{ background: '#161B22', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 2, fontSize: 11, fontFamily: 'inherit' }}
+                    labelFormatter={(_, p) => p[0] ? formatCentral((p[0].payload as BodyFatReading).recorded_at) : ''}
+                    formatter={(v: number) => [`${v}%`, 'BF%']}
+                  />
+                  <Line type="monotone" dataKey="body_fat_pct" stroke={WEIGHT_COLOR} strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+            {/* History list */}
+            <ul className="mt-3 space-y-1 max-h-40 overflow-y-auto">
+              {bodyFatReadings.map(r => (
+                <li key={r.id} className="flex items-center justify-between text-xs font-mono text-text-secondary">
+                  <span>{formatCentral(r.recorded_at)}</span>
+                  <span className="text-text-primary font-bold">{r.body_fat_pct}%</span>
+                  <span className="truncate max-w-[100px] text-text-secondary">{r.notes}</span>
+                  {/* Fix 1: use confirm modal instead of firing delete directly */}
+                  <button
+                    onClick={() => setConfirmDeleteBodyFatId(r.id)}
+                    aria-label={`Delete body fat reading from ${formatCentral(r.recorded_at)}`}
+                    className="cursor-pointer text-red-400 hover:text-red-300 uppercase text-[10px] tracking-widest transition-colors"
+                  >
+                    Delete
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+        {/* Log form always rendered so new users can log their first reading */}
+        <form
+          aria-label="Log body fat"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const pct = Number(bfForm.pct);
+            if (!pct || pct <= 0) return;
+            await onAddBodyFat(pct, bfForm.notes, bfForm.date);
+            setBfForm({ pct: '', notes: '', date: new Intl.DateTimeFormat('en-CA').format(new Date()) });
+          }}
+          className="flex flex-wrap gap-2 mt-4"
+        >
+          <input type="number" min="0" step="0.1" value={bfForm.pct} onChange={e => setBfForm(f => ({ ...f, pct: e.target.value }))} placeholder="BF%" aria-label="Body fat percentage" className="w-20 bg-surface border border-white/10 text-text-primary text-xs px-2 py-1 rounded-sm outline-none focus-visible:ring-1 focus-visible:ring-accent-4 font-mono" />
+          <input type="date" value={bfForm.date} onChange={e => setBfForm(f => ({ ...f, date: e.target.value }))} className="bg-surface border border-white/10 text-text-primary text-xs px-2 py-1 rounded-sm outline-none focus-visible:ring-1 focus-visible:ring-accent-4 font-mono" />
+          <input type="text" value={bfForm.notes} onChange={e => setBfForm(f => ({ ...f, notes: e.target.value }))} placeholder="Notes" className="flex-1 min-w-[120px] bg-surface border border-white/10 text-text-primary text-xs px-2 py-1 rounded-sm outline-none focus-visible:ring-1 focus-visible:ring-accent-4 font-mono" />
+          <button type="submit" className="cursor-pointer bg-accent-4 text-background px-4 py-1 rounded-sm text-xs font-bold uppercase tracking-wider hover:bg-white transition-colors">Log</button>
+        </form>
+      </section>
 
       {/* ── Circumference subsection ── */}
       <div>
@@ -679,85 +799,6 @@ export function BodyCompositionSection({
           <p role="alert" className="text-red-400 text-xs font-mono mb-4 pl-1">{circumferenceFormError}</p>
         )}
 
-        {/* Step 6: Profile row */}
-        <div className="flex items-center gap-3 mb-4 mt-4">
-          {userProfile && !editingProfile ? (
-            <>
-              <span className="text-xs font-mono text-text-secondary uppercase tracking-widest">
-                Height: <span className="text-text-primary font-bold">{userProfile.height_cm} cm</span>
-              </span>
-              <button
-                onClick={() => { setEditingProfile(true); setHeightInput(String(userProfile.height_cm)); }}
-                className="text-xs font-mono text-text-secondary hover:text-text-primary uppercase tracking-widest cursor-pointer transition-colors"
-              >
-                [Edit]
-              </button>
-            </>
-          ) : (
-            <form
-              onSubmit={async (e) => {
-                e.preventDefault();
-                const h = Number(heightInput);
-                if (!h || h <= 0) return;
-                await onSaveProfile(h);
-                setEditingProfile(false);
-              }}
-              className="flex items-center gap-2"
-            >
-              <input
-                type="number"
-                min="1"
-                step="0.1"
-                value={heightInput}
-                onChange={e => setHeightInput(e.target.value)}
-                placeholder="Height (cm)"
-                className="w-32 bg-surface border border-white/10 text-text-primary text-xs px-2 py-1 rounded-sm outline-none focus-visible:ring-1 focus-visible:ring-accent-4 font-mono"
-                autoFocus
-              />
-              <button type="submit" className="cursor-pointer bg-accent-4 text-background px-3 py-1 rounded-sm text-xs font-bold uppercase tracking-wider hover:bg-white transition-colors">
-                Save
-              </button>
-              {editingProfile && (
-                <button type="button" onClick={() => setEditingProfile(false)} className="cursor-pointer text-xs font-mono text-text-secondary hover:text-text-primary uppercase transition-colors">
-                  Cancel
-                </button>
-              )}
-            </form>
-          )}
-        </div>
-
-        {/* Step 6: KPI row */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-          <KpiCard
-            label="BF% Navy"
-            value={navyBF !== null ? `${Math.round(navyBF * 10) / 10}%` : null}
-            delta={null}
-            deltaPositive={null}
-            improvementDirection="down"
-          />
-          <KpiCard
-            label="BF% Samsung"
-            value={latestBF ? `${latestBF.body_fat_pct}%` : null}
-            delta={null}
-            deltaPositive={null}
-            improvementDirection="down"
-          />
-          <KpiCard
-            label="W/H Ratio"
-            value={whRatio !== null ? String(Math.round(whRatio * 100) / 100) : null}
-            delta={null}
-            deltaPositive={null}
-            improvementDirection="down"
-          />
-          <KpiCard
-            label="Weight"
-            value={latestWeight ? `${latestWeight.weight} lbs` : null}
-            delta={weightDelta30d !== null ? `${weightDelta30d > 0 ? '+' : ''}${weightDelta30d} vs 30d avg` : null}
-            deltaPositive={weightDelta30d !== null ? weightDelta30d > 0 : null}
-            improvementDirection="down"
-          />
-        </div>
-
         {/* Step 8: Sparkline grid (replaces old circumference LineChart) */}
         {filteredCircumferenceReadings.length > 0 && (
           <div className="mt-4 mb-6" aria-label="Circumference trend chart">
@@ -808,14 +849,15 @@ export function BodyCompositionSection({
                     className="flex items-center justify-between gap-4 px-3 py-2 rounded-sm bg-background hover:bg-white/5 transition-colors group"
                   >
                     <span className="text-text-secondary text-xs font-mono shrink-0">{formatCentral(r.recorded_at)}</span>
+                    {/* Fix 5: all 7 fields guarded by > 0 */}
                     <span className="text-sm font-bold font-mono shrink-0 flex gap-1 items-baseline flex-wrap">
-                      <span className="text-text-secondary">{r.abdomen}</span>
+                      {r.abdomen > 0 && <span className="text-text-secondary">{r.abdomen}</span>}
                       {r.biceps > 0 && <><span className="text-text-secondary mx-0.5">/</span><span className="text-accent-4">{r.biceps}</span></>}
                       {r.quads > 0 && <><span className="text-text-secondary mx-0.5">/</span><span className="text-accent-3">{r.quads}</span></>}
-                      {r.neck ? <><span className="text-text-secondary mx-0.5">/</span><span className="text-text-secondary">{r.neck}</span></> : null}
-                      {r.hip ? <><span className="text-text-secondary mx-0.5">/</span><span className="text-text-secondary">{r.hip}</span></> : null}
-                      {r.chest ? <><span className="text-text-secondary mx-0.5">/</span><span className="text-text-secondary">{r.chest}</span></> : null}
-                      {r.calf ? <><span className="text-text-secondary mx-0.5">/</span><span className="text-text-secondary">{r.calf}</span></> : null}
+                      {(r.neck ?? 0) > 0 ? <><span className="text-text-secondary mx-0.5">/</span><span className="text-text-secondary">{r.neck}</span></> : null}
+                      {(r.hip ?? 0) > 0 ? <><span className="text-text-secondary mx-0.5">/</span><span className="text-text-secondary">{r.hip}</span></> : null}
+                      {(r.chest ?? 0) > 0 ? <><span className="text-text-secondary mx-0.5">/</span><span className="text-text-secondary">{r.chest}</span></> : null}
+                      {(r.calf ?? 0) > 0 ? <><span className="text-text-secondary mx-0.5">/</span><span className="text-text-secondary">{r.calf}</span></> : null}
                       <span className="text-text-secondary text-xs ml-1">cm</span>
                     </span>
                     {r.notes && <span className="text-text-secondary text-xs font-mono truncate flex-1">{r.notes}</span>}

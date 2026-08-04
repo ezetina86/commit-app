@@ -472,4 +472,65 @@ describe('BodyCompositionSection', () => {
     fireEvent.submit(screen.getByRole('form', { name: /log circumference/i }));
     expect(onAdd).not.toHaveBeenCalled();
   });
+
+  // ── Body fat % form ────────────────────────────────────────────────────────
+
+  it('calls onAddBodyFat with correct value on valid submit', async () => {
+    const user = userEvent.setup();
+    const onAdd = vi.fn().mockResolvedValue(undefined);
+    // bodyFatReadings: [] — log form is always visible after Fix 3
+    render(<BodyCompositionSection {...defaultProps} bodyFatReadings={[]} onAddBodyFat={onAdd} />);
+    await user.type(screen.getByLabelText('Body fat percentage'), '20');
+    await user.click(screen.getByRole('button', { name: /^log$/i }));
+    await waitFor(() => {
+      expect(onAdd).toHaveBeenCalledWith(20, '', expect.any(String));
+    });
+  });
+
+  it('does not call onAddBodyFat when body_fat_pct is empty', async () => {
+    const onAdd = vi.fn().mockResolvedValue(undefined);
+    render(<BodyCompositionSection {...defaultProps} bodyFatReadings={[]} onAddBodyFat={onAdd} />);
+    fireEvent.submit(screen.getByRole('form', { name: /log body fat/i }));
+    expect(onAdd).not.toHaveBeenCalled();
+  });
+
+  it('does not call onAddBodyFat when body_fat_pct is 0', async () => {
+    const user = userEvent.setup();
+    const onAdd = vi.fn().mockResolvedValue(undefined);
+    render(<BodyCompositionSection {...defaultProps} bodyFatReadings={[]} onAddBodyFat={onAdd} />);
+    await user.type(screen.getByLabelText('Body fat percentage'), '0');
+    await user.click(screen.getByRole('button', { name: /^log$/i }));
+    expect(onAdd).not.toHaveBeenCalled();
+  });
+
+  // ── Body fat % delete modal ────────────────────────────────────────────────
+
+  it('opens BF% delete confirm modal when delete button is clicked', async () => {
+    const user = userEvent.setup();
+    const bfReading = { id: 'bf1', body_fat_pct: 18.5, notes: '', recorded_at: daysAgo(1) };
+    render(<BodyCompositionSection {...defaultProps} bodyFatReadings={[bfReading]} />);
+    await user.click(screen.getByRole('button', { name: /delete body fat reading/i }));
+    expect(screen.getByText(/permanently delete this body fat reading/i)).toBeInTheDocument();
+  });
+
+  it('calls onDeleteBodyFat when BF% delete is confirmed', async () => {
+    const user = userEvent.setup();
+    const onDel = vi.fn().mockResolvedValue(undefined);
+    const bfReading = { id: 'bf1', body_fat_pct: 18.5, notes: '', recorded_at: daysAgo(1) };
+    render(<BodyCompositionSection {...defaultProps} bodyFatReadings={[bfReading]} onDeleteBodyFat={onDel} />);
+    await user.click(screen.getByRole('button', { name: /delete body fat reading/i }));
+    await user.click(screen.getByRole('button', { name: /confirm delete/i }));
+    expect(onDel).toHaveBeenCalledWith('bf1');
+  });
+
+  it('cancels BF% delete when cancel is clicked', async () => {
+    const user = userEvent.setup();
+    const onDel = vi.fn().mockResolvedValue(undefined);
+    const bfReading = { id: 'bf1', body_fat_pct: 18.5, notes: '', recorded_at: daysAgo(1) };
+    render(<BodyCompositionSection {...defaultProps} bodyFatReadings={[bfReading]} onDeleteBodyFat={onDel} />);
+    await user.click(screen.getByRole('button', { name: /delete body fat reading/i }));
+    await user.click(screen.getByRole('button', { name: /^cancel$/i }));
+    expect(onDel).not.toHaveBeenCalled();
+    expect(screen.queryByText(/permanently delete this body fat reading/i)).not.toBeInTheDocument();
+  });
 });
