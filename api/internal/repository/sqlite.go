@@ -109,6 +109,17 @@ func (r *SQLiteRepository) initSchema() error {
 			recorded_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 		);`,
 		`CREATE INDEX IF NOT EXISTS idx_circumference_recorded_at ON circumference_readings(recorded_at);`,
+		`CREATE TABLE IF NOT EXISTS user_profile (
+    id        INTEGER PRIMARY KEY CHECK (id = 1),
+    height_cm REAL NOT NULL
+);`,
+		`CREATE TABLE IF NOT EXISTS body_fat_readings (
+    id           TEXT PRIMARY KEY,
+    body_fat_pct REAL NOT NULL,
+    notes        TEXT DEFAULT '',
+    recorded_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);`,
+		`CREATE INDEX IF NOT EXISTS idx_body_fat_recorded_at ON body_fat_readings(recorded_at);`,
 		`CREATE TABLE IF NOT EXISTS app_settings (
 			key   TEXT PRIMARY KEY,
 			value TEXT NOT NULL
@@ -127,6 +138,31 @@ func (r *SQLiteRepository) initSchema() error {
 	r.db.Exec(`ALTER TABLE habits ADD COLUMN tags TEXT DEFAULT '[]'`)
 	r.db.Exec(`ALTER TABLE habits ADD COLUMN archived INTEGER DEFAULT 0`)
 	r.db.Exec(`ALTER TABLE habits ADD COLUMN habit_type TEXT DEFAULT 'quantitative'`)
+
+	// addColumnIfMissing is a local helper — runs PRAGMA table_info, only fires
+	// ALTER TABLE when the column is absent. Safe on every boot.
+	addColumnIfMissing := func(table, col, colType string) {
+		rows, err := r.db.Query(`PRAGMA table_info(` + table + `)`)
+		if err != nil {
+			return
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var cid int
+			var name, typ string
+			var notNull, pk int
+			var dflt interface{}
+			rows.Scan(&cid, &name, &typ, &notNull, &dflt, &pk)
+			if name == col {
+				return
+			}
+		}
+		r.db.Exec(`ALTER TABLE ` + table + ` ADD COLUMN ` + col + ` ` + colType)
+	}
+	addColumnIfMissing("circumference_readings", "neck", "REAL")
+	addColumnIfMissing("circumference_readings", "hip", "REAL")
+	addColumnIfMissing("circumference_readings", "chest", "REAL")
+	addColumnIfMissing("circumference_readings", "calf", "REAL")
 
 	return nil
 }
@@ -555,21 +591,29 @@ func (r *SQLiteRepository) DeleteWeightReading(ctx context.Context, id string) e
 	return nil
 }
 
-func (r *SQLiteRepository) CreateCircumferenceReading(ctx context.Context, abdomen, biceps, quads float64, notes string, recordedAt time.Time) (*models.CircumferenceReading, error) {
+func (r *SQLiteRepository) CreateCircumferenceReading(ctx context.Context, abdomen, biceps, quads, neck, hip, chest, calf float64, notes string, recordedAt time.Time) (*models.CircumferenceReading, error) {
 	id := uuid.New().String()
+	neckVal := sql.NullFloat64{Float64: neck, Valid: neck != 0}
+	hipVal := sql.NullFloat64{Float64: hip, Valid: hip != 0}
+	chestVal := sql.NullFloat64{Float64: chest, Valid: chest != 0}
+	calfVal := sql.NullFloat64{Float64: calf, Valid: calf != 0}
 	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO circumference_readings (id, abdomen, biceps, quads, notes, recorded_at) VALUES (?, ?, ?, ?, ?, ?)`,
-		id, abdomen, biceps, quads, notes, recordedAt.UTC(),
+		`INSERT INTO circumference_readings (id, abdomen, biceps, quads, neck, hip, chest, calf, notes, recorded_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		id, abdomen, biceps, quads, neckVal, hipVal, chestVal, calfVal, notes, recordedAt.UTC(),
 	)
 	if err != nil {
 		return nil, err
 	}
-	return &models.CircumferenceReading{ID: id, Abdomen: abdomen, Biceps: biceps, Quads: quads, Notes: notes, RecordedAt: recordedAt}, nil
+	return &models.CircumferenceReading{
+		ID: id, Abdomen: abdomen, Biceps: biceps, Quads: quads,
+		Neck: neck, Hip: hip, Chest: chest, Calf: calf,
+		Notes: notes, RecordedAt: recordedAt,
+	}, nil
 }
 
 func (r *SQLiteRepository) ListCircumferenceReadings(ctx context.Context) ([]*models.CircumferenceReading, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, abdomen, biceps, quads, IFNULL(notes, ''), recorded_at FROM circumference_readings ORDER BY recorded_at DESC`,
+		`SELECT id, abdomen, biceps, quads, IFNULL(neck,0), IFNULL(hip,0), IFNULL(chest,0), IFNULL(calf,0), IFNULL(notes,''), recorded_at FROM circumference_readings ORDER BY recorded_at DESC`,
 	)
 	if err != nil {
 		return nil, err
@@ -578,7 +622,7 @@ func (r *SQLiteRepository) ListCircumferenceReadings(ctx context.Context) ([]*mo
 	var readings []*models.CircumferenceReading
 	for rows.Next() {
 		c := &models.CircumferenceReading{}
-		if err := rows.Scan(&c.ID, &c.Abdomen, &c.Biceps, &c.Quads, &c.Notes, &c.RecordedAt); err != nil {
+		if err := rows.Scan(&c.ID, &c.Abdomen, &c.Biceps, &c.Quads, &c.Neck, &c.Hip, &c.Chest, &c.Calf, &c.Notes, &c.RecordedAt); err != nil {
 			return nil, err
 		}
 		readings = append(readings, c)
@@ -594,6 +638,78 @@ func (r *SQLiteRepository) ListCircumferenceReadings(ctx context.Context) ([]*mo
 
 func (r *SQLiteRepository) DeleteCircumferenceReading(ctx context.Context, id string) error {
 	result, err := r.db.ExecContext(ctx, `DELETE FROM circumference_readings WHERE id = ?`, id)
+	if err != nil {
+		return err
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func (r *SQLiteRepository) GetUserProfile(ctx context.Context) (*models.UserProfile, error) {
+	p := &models.UserProfile{}
+	err := r.db.QueryRowContext(ctx, `SELECT height_cm FROM user_profile WHERE id = 1`).Scan(&p.HeightCm)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return p, nil
+}
+
+func (r *SQLiteRepository) UpsertUserProfile(ctx context.Context, heightCm float64) (*models.UserProfile, error) {
+	_, err := r.db.ExecContext(ctx, `INSERT OR REPLACE INTO user_profile (id, height_cm) VALUES (1, ?)`, heightCm)
+	if err != nil {
+		return nil, err
+	}
+	return &models.UserProfile{HeightCm: heightCm}, nil
+}
+
+func (r *SQLiteRepository) CreateBodyFatReading(ctx context.Context, bodyFatPct float64, notes string, recordedAt time.Time) (*models.BodyFatReading, error) {
+	id := uuid.New().String()
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO body_fat_readings (id, body_fat_pct, notes, recorded_at) VALUES (?, ?, ?, ?)`,
+		id, bodyFatPct, notes, recordedAt.UTC(),
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &models.BodyFatReading{ID: id, BodyFatPct: bodyFatPct, Notes: notes, RecordedAt: recordedAt}, nil
+}
+
+func (r *SQLiteRepository) ListBodyFatReadings(ctx context.Context) ([]*models.BodyFatReading, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT id, body_fat_pct, IFNULL(notes,''), recorded_at FROM body_fat_readings ORDER BY recorded_at DESC`,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var readings []*models.BodyFatReading
+	for rows.Next() {
+		b := &models.BodyFatReading{}
+		if err := rows.Scan(&b.ID, &b.BodyFatPct, &b.Notes, &b.RecordedAt); err != nil {
+			return nil, err
+		}
+		readings = append(readings, b)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if readings == nil {
+		readings = []*models.BodyFatReading{}
+	}
+	return readings, nil
+}
+
+func (r *SQLiteRepository) DeleteBodyFatReading(ctx context.Context, id string) error {
+	result, err := r.db.ExecContext(ctx, `DELETE FROM body_fat_readings WHERE id = ?`, id)
 	if err != nil {
 		return err
 	}

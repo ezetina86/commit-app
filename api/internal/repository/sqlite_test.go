@@ -683,7 +683,7 @@ func TestCreateAndListCircumferenceReadings(t *testing.T) {
 	ctx := context.Background()
 	now := time.Now().UTC()
 
-	r, err := repo.CreateCircumferenceReading(ctx, 36.5, 14.0, 22.0, "post-workout", now)
+	r, err := repo.CreateCircumferenceReading(ctx, 36.5, 14.0, 22.0, 0, 0, 0, 0, "post-workout", now)
 	if err != nil {
 		t.Fatalf("CreateCircumferenceReading: %v", err)
 	}
@@ -724,7 +724,7 @@ func TestDeleteCircumferenceReading(t *testing.T) {
 	ctx := context.Background()
 	now := time.Now().UTC()
 
-	r, _ := repo.CreateCircumferenceReading(ctx, 38.0, 13.5, 21.5, "", now)
+	r, _ := repo.CreateCircumferenceReading(ctx, 38.0, 13.5, 21.5, 0, 0, 0, 0, "", now)
 
 	if err := repo.DeleteCircumferenceReading(ctx, r.ID); err != nil {
 		t.Fatalf("DeleteCircumferenceReading: %v", err)
