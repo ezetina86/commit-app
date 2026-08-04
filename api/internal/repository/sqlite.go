@@ -110,15 +110,15 @@ func (r *SQLiteRepository) initSchema() error {
 		);`,
 		`CREATE INDEX IF NOT EXISTS idx_circumference_recorded_at ON circumference_readings(recorded_at);`,
 		`CREATE TABLE IF NOT EXISTS user_profile (
-    id        INTEGER PRIMARY KEY CHECK (id = 1),
-    height_cm REAL NOT NULL
-);`,
+			id        INTEGER PRIMARY KEY CHECK (id = 1),
+			height_cm REAL NOT NULL
+		);`,
 		`CREATE TABLE IF NOT EXISTS body_fat_readings (
-    id           TEXT PRIMARY KEY,
-    body_fat_pct REAL NOT NULL,
-    notes        TEXT DEFAULT '',
-    recorded_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-);`,
+			id           TEXT PRIMARY KEY,
+			body_fat_pct REAL NOT NULL,
+			notes        TEXT DEFAULT '',
+			recorded_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+		);`,
 		`CREATE INDEX IF NOT EXISTS idx_body_fat_recorded_at ON body_fat_readings(recorded_at);`,
 		`CREATE TABLE IF NOT EXISTS app_settings (
 			key   TEXT PRIMARY KEY,
