@@ -21,11 +21,11 @@ import {
   downloadMarkdownFile,
 } from '../utils/export-body-composition';
 import type { UserProfile, WeightReading, CircumferenceReading, BodyFatReading } from '../types/body-composition';
+import { navyMethodBF } from '../utils/body-fat';
+import { KpiCard } from './kpi-card';
+import { SparklineCard } from './sparkline-card';
 
 // Design token mirrors — Recharts SVG props require literal values, not CSS vars
-const ABDOMEN_COLOR = '#7D8590';
-const BICEPS_COLOR = '#39D353';
-const QUADS_COLOR = '#26A641';
 const WEIGHT_COLOR = '#39D353';
 const TOKEN_TEXT_SECONDARY = '#7D8590';
 const TOKEN_CHART_GRID = '#ffffff0d';
@@ -81,28 +81,6 @@ function WeightTooltip({ active, payload }: TooltipProps<number, string>) {
   );
 }
 
-interface CircumferenceTooltipPayload {
-  abdomen: number;
-  biceps: number;
-  quads: number;
-  notes: string;
-  recorded_at: string;
-}
-
-function CircumferenceTooltip({ active, payload }: TooltipProps<number, string>) {
-  if (!active || !payload || payload.length === 0) return null;
-  const data = payload[0].payload as CircumferenceTooltipPayload;
-  return (
-    <div className="bg-surface border border-white/10 p-3 rounded-sm text-xs font-mono">
-      <p className="text-text-secondary mb-1">{formatCentral(data.recorded_at)}</p>
-      <p style={{ color: ABDOMEN_COLOR }}>Abdomen: <span className="font-bold">{data.abdomen} cm</span></p>
-      <p style={{ color: BICEPS_COLOR }}>Biceps: <span className="font-bold">{data.biceps} cm</span></p>
-      <p style={{ color: QUADS_COLOR }}>Quads: <span className="font-bold">{data.quads} cm</span></p>
-      {data.notes && <p className="text-text-secondary mt-1 max-w-[160px] whitespace-normal">{data.notes}</p>}
-    </div>
-  );
-}
-
 export function BodyCompositionSection({
   weightReadings,
   circumferenceReadings,
@@ -110,11 +88,11 @@ export function BodyCompositionSection({
   onDeleteWeight,
   onAddCircumference,
   onDeleteCircumference,
-  bodyFatReadings: _bodyFatReadings,
-  userProfile: _userProfile,
-  onSaveProfile: _onSaveProfile,
-  onAddBodyFat: _onAddBodyFat,
-  onDeleteBodyFat: _onDeleteBodyFat,
+  bodyFatReadings,
+  userProfile,
+  onSaveProfile,
+  onAddBodyFat,
+  onDeleteBodyFat,
 }: Props) {
   const today = new Intl.DateTimeFormat('en-CA').format(new Date());
 
@@ -134,6 +112,15 @@ export function BodyCompositionSection({
 
   const [circPreset, setCircPreset] = useState<TimeRangePreset>('30d');
   const [sinceDateCircumference, setSinceDateCircumference] = useState('');
+
+  // Step 3: profile/BF/new circumference state
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [heightInput, setHeightInput] = useState('');
+  const [bfForm, setBfForm] = useState({ pct: '', notes: '', date: new Intl.DateTimeFormat('en-CA').format(new Date()) });
+  const [neckInput, setNeckInput] = useState('');
+  const [hipInput, setHipInput] = useState('');
+  const [chestInput, setChestInput] = useState('');
+  const [calfInput, setCalfInput] = useState('');
 
   const alertState = useMemo((): AlertState => {
     const now = Date.now();
@@ -220,28 +207,37 @@ export function BodyCompositionSection({
     }
   };
 
+  // Step 4: updated validation — at least one field required
   const handleCircumferenceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const a = Number(circumferenceForm.abdomen);
-    const b = Number(circumferenceForm.biceps);
-    const q = Number(circumferenceForm.quads);
-    if (!circumferenceForm.abdomen || a <= 0 || !circumferenceForm.biceps || b <= 0 || !circumferenceForm.quads || q <= 0) {
-      setCircumferenceFormError('Abdomen, biceps, and quads must be greater than 0');
+    const allZero = [circumferenceForm.abdomen, circumferenceForm.biceps, circumferenceForm.quads, neckInput, hipInput, chestInput, calfInput]
+      .every(v => !v || Number(v) <= 0);
+    if (allZero) {
+      setCircumferenceFormError('At least one measurement must be greater than 0');
       return;
     }
     setCircumferenceFormError('');
     setCircumferenceSubmitting(true);
     try {
-      // ponytail: neck/hip/chest/calf default to 0 until Task 10 adds their form fields
-      await onAddCircumference(a, b, q, 0, 0, 0, 0, circumferenceForm.notes, circumferenceForm.date);
+      await onAddCircumference(
+        Number(circumferenceForm.abdomen) || 0,
+        Number(circumferenceForm.biceps) || 0,
+        Number(circumferenceForm.quads) || 0,
+        Number(neckInput) || 0,
+        Number(hipInput) || 0,
+        Number(chestInput) || 0,
+        Number(calfInput) || 0,
+        circumferenceForm.notes,
+        circumferenceForm.date,
+      );
       setCircumferenceForm(f => ({ ...f, abdomen: '', biceps: '', quads: '', notes: '' }));
+      setNeckInput(''); setHipInput(''); setChestInput(''); setCalfInput('');
     } finally {
       setCircumferenceSubmitting(false);
     }
   };
 
   const weightChartData = [...filteredWeightReadings].reverse();
-  const circumferenceChartData = [...filteredCircumferenceReadings].reverse();
 
   const avgWeight = filteredWeightReadings.length > 0
     ? Math.round(filteredWeightReadings.reduce((sum, r) => sum + r.weight, 0) / filteredWeightReadings.length * 10) / 10
@@ -252,11 +248,6 @@ export function BodyCompositionSection({
     return calculateDynamicDomain(vals, [], 0.05, 1);
   }, [filteredWeightReadings]);
 
-  const circDomain = useMemo(() => {
-    const vals = filteredCircumferenceReadings.flatMap(r => [r.abdomen, r.biceps, r.quads]);
-    return calculateDynamicDomain(vals, [], 0.05, 1);
-  }, [filteredCircumferenceReadings]);
-
   const avgAbdomen = filteredCircumferenceReadings.length > 0
     ? Math.round(filteredCircumferenceReadings.reduce((sum, r) => sum + r.abdomen, 0) / filteredCircumferenceReadings.length * 10) / 10
     : null;
@@ -265,6 +256,34 @@ export function BodyCompositionSection({
     : null;
   const avgQuads = filteredCircumferenceReadings.length > 0
     ? Math.round(filteredCircumferenceReadings.reduce((sum, r) => sum + r.quads, 0) / filteredCircumferenceReadings.length * 10) / 10
+    : null;
+
+  // Step 5: KPI data derivation
+  const latestCirc = circumferenceReadings[0];
+  const latestWeight = weightReadings[0];
+  const latestBF = bodyFatReadings[0];
+
+  const avgWeight30d = useMemo(() => {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 30);
+    const recent = weightReadings.filter(r => new Date(r.recorded_at) >= cutoff);
+    if (!recent.length) return null;
+    return recent.reduce((s, r) => s + r.weight, 0) / recent.length;
+  }, [weightReadings]);
+
+  const navyBF = useMemo(() => {
+    if (!userProfile || !latestCirc || !latestCirc.neck || !latestCirc.abdomen) return null;
+    const val = navyMethodBF(latestCirc.neck, latestCirc.abdomen, userProfile.height_cm);
+    return isFinite(val) ? val : null;
+  }, [userProfile, latestCirc]);
+
+  const whRatio = useMemo(() => {
+    if (!latestCirc || !latestCirc.abdomen || !latestCirc.hip) return null;
+    return latestCirc.abdomen / latestCirc.hip;
+  }, [latestCirc]);
+
+  const weightDelta30d = latestWeight && avgWeight30d
+    ? Math.round((latestWeight.weight - avgWeight30d) * 10) / 10
     : null;
 
   const alertConfig: Record<Exclude<AlertState, null>, { color: string; message: string }> = {
@@ -518,6 +537,56 @@ export function BodyCompositionSection({
         )}
       </div>
 
+      {/* ── Body Fat % section (Step 7) ── */}
+      {bodyFatReadings.length > 0 && (
+        <section className="border-t border-white/5 pt-6 mt-2 mb-8">
+          <h3 className="text-xs font-mono uppercase tracking-widest text-text-secondary mb-4">Body Fat %</h3>
+          {/* Single chart */}
+          <div style={{ height: 160 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={[...bodyFatReadings].reverse()} margin={{ top: 8, right: 8, bottom: 8, left: 0 }}>
+                <CartesianGrid stroke={TOKEN_CHART_GRID} strokeDasharray="2 2" />
+                <XAxis dataKey="recorded_at" tick={false} axisLine={false} tickLine={false} />
+                <YAxis domain={['auto', 'auto']} tick={{ fill: TOKEN_TEXT_SECONDARY, fontSize: 10, fontFamily: 'inherit' }} axisLine={false} tickLine={false} width={32} />
+                <Tooltip
+                  contentStyle={{ background: '#161B22', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 2, fontSize: 11, fontFamily: 'inherit' }}
+                  labelFormatter={(_, p) => p[0] ? formatCentral((p[0].payload as BodyFatReading).recorded_at) : ''}
+                  formatter={(v: number) => [`${v}%`, 'BF%']}
+                />
+                <Line type="monotone" dataKey="body_fat_pct" stroke={WEIGHT_COLOR} strokeWidth={2} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+          {/* Log form */}
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              const pct = Number(bfForm.pct);
+              if (!pct || pct <= 0) return;
+              await onAddBodyFat(pct, bfForm.notes, bfForm.date);
+              setBfForm({ pct: '', notes: '', date: new Intl.DateTimeFormat('en-CA').format(new Date()) });
+            }}
+            className="flex flex-wrap gap-2 mt-4"
+          >
+            <input type="number" min="0" step="0.1" value={bfForm.pct} onChange={e => setBfForm(f => ({ ...f, pct: e.target.value }))} placeholder="BF%" className="w-20 bg-surface border border-white/10 text-text-primary text-xs px-2 py-1 rounded-sm outline-none focus-visible:ring-1 focus-visible:ring-accent-4 font-mono" />
+            <input type="date" value={bfForm.date} onChange={e => setBfForm(f => ({ ...f, date: e.target.value }))} className="bg-surface border border-white/10 text-text-primary text-xs px-2 py-1 rounded-sm outline-none focus-visible:ring-1 focus-visible:ring-accent-4 font-mono" />
+            <input type="text" value={bfForm.notes} onChange={e => setBfForm(f => ({ ...f, notes: e.target.value }))} placeholder="Notes" className="flex-1 min-w-[120px] bg-surface border border-white/10 text-text-primary text-xs px-2 py-1 rounded-sm outline-none focus-visible:ring-1 focus-visible:ring-accent-4 font-mono" />
+            <button type="submit" className="cursor-pointer bg-accent-4 text-background px-4 py-1 rounded-sm text-xs font-bold uppercase tracking-wider hover:bg-white transition-colors">Log</button>
+          </form>
+          {/* History list */}
+          <ul className="mt-3 space-y-1 max-h-40 overflow-y-auto">
+            {bodyFatReadings.map(r => (
+              <li key={r.id} className="flex items-center justify-between text-xs font-mono text-text-secondary">
+                <span>{formatCentral(r.recorded_at)}</span>
+                <span className="text-text-primary font-bold">{r.body_fat_pct}%</span>
+                <span className="truncate max-w-[100px] text-text-secondary">{r.notes}</span>
+                <button onClick={() => onDeleteBodyFat(r.id)} className="cursor-pointer text-red-400 hover:text-red-300 uppercase text-[10px] tracking-widest transition-colors">Delete</button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {/* ── Circumference subsection ── */}
       <div>
         <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
@@ -536,11 +605,11 @@ export function BodyCompositionSection({
             <span className="text-text-secondary text-xs font-mono uppercase tracking-widest">
               {circPreset === '30d' ? '30D Avg' : circPreset === '90d' ? '90D Avg' : circPreset === '1y' ? '1Y Avg' : sinceDateCircumference ? `Avg since ${sinceDateCircumference}` : 'Avg'}
             </span>
-            <span style={{ color: ABDOMEN_COLOR }} className="text-xl font-bold font-mono">{avgAbdomen}</span>
+            <span className="text-xl font-bold font-mono text-text-secondary">{avgAbdomen}</span>
             <span className="text-text-secondary text-xs">/</span>
-            <span style={{ color: BICEPS_COLOR }} className="text-xl font-bold font-mono">{avgBiceps}</span>
+            <span className="text-xl font-bold font-mono text-accent-4">{avgBiceps}</span>
             <span className="text-text-secondary text-xs">/</span>
-            <span style={{ color: QUADS_COLOR }} className="text-xl font-bold font-mono">{avgQuads}</span>
+            <span className="text-xl font-bold font-mono text-accent-3">{avgQuads}</span>
             <span className="text-text-secondary text-xs font-mono">cm</span>
             <span className="text-text-secondary text-xs font-mono font-bold">({filteredCircumferenceReadings.length} readings)</span>
           </div>
@@ -577,6 +646,10 @@ export function BodyCompositionSection({
             step="0.1"
             className="w-28 bg-background border-none text-text-primary px-3 py-2 rounded-sm text-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none placeholder:text-text-secondary/50 font-mono"
           />
+          <input type="number" min="0" step="0.1" value={neckInput} onChange={e => setNeckInput(e.target.value)} placeholder="Neck" aria-label="Neck" name="circ-neck" className="w-20 bg-background border-none text-text-primary px-3 py-2 rounded-sm text-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none placeholder:text-text-secondary/50 font-mono" />
+          <input type="number" min="0" step="0.1" value={hipInput} onChange={e => setHipInput(e.target.value)} placeholder="Hip" aria-label="Hip" name="circ-hip" className="w-20 bg-background border-none text-text-primary px-3 py-2 rounded-sm text-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none placeholder:text-text-secondary/50 font-mono" />
+          <input type="number" min="0" step="0.1" value={chestInput} onChange={e => setChestInput(e.target.value)} placeholder="Chest" aria-label="Chest" name="circ-chest" className="w-20 bg-background border-none text-text-primary px-3 py-2 rounded-sm text-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none placeholder:text-text-secondary/50 font-mono" />
+          <input type="number" min="0" step="0.1" value={calfInput} onChange={e => setCalfInput(e.target.value)} placeholder="Calf" aria-label="Calf" name="circ-calf" className="w-20 bg-background border-none text-text-primary px-3 py-2 rounded-sm text-sm focus-visible:ring-1 focus-visible:ring-accent-4 outline-none placeholder:text-text-secondary/50 font-mono" />
           <input
             type="date"
             value={circumferenceForm.date}
@@ -607,51 +680,110 @@ export function BodyCompositionSection({
           <p role="alert" className="text-red-400 text-xs font-mono mb-4 pl-1">{circumferenceFormError}</p>
         )}
 
+        {/* Step 6: Profile row */}
+        <div className="flex items-center gap-3 mb-4 mt-4">
+          {userProfile && !editingProfile ? (
+            <>
+              <span className="text-xs font-mono text-text-secondary uppercase tracking-widest">
+                Height: <span className="text-text-primary font-bold">{userProfile.height_cm} cm</span>
+              </span>
+              <button
+                onClick={() => { setEditingProfile(true); setHeightInput(String(userProfile.height_cm)); }}
+                className="text-xs font-mono text-text-secondary hover:text-text-primary uppercase tracking-widest cursor-pointer transition-colors"
+              >
+                [Edit]
+              </button>
+            </>
+          ) : (
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const h = Number(heightInput);
+                if (!h || h <= 0) return;
+                await onSaveProfile(h);
+                setEditingProfile(false);
+              }}
+              className="flex items-center gap-2"
+            >
+              <input
+                type="number"
+                min="1"
+                step="0.1"
+                value={heightInput}
+                onChange={e => setHeightInput(e.target.value)}
+                placeholder="Height (cm)"
+                className="w-32 bg-surface border border-white/10 text-text-primary text-xs px-2 py-1 rounded-sm outline-none focus-visible:ring-1 focus-visible:ring-accent-4 font-mono"
+                autoFocus
+              />
+              <button type="submit" className="cursor-pointer bg-accent-4 text-background px-3 py-1 rounded-sm text-xs font-bold uppercase tracking-wider hover:bg-white transition-colors">
+                Save
+              </button>
+              {editingProfile && (
+                <button type="button" onClick={() => setEditingProfile(false)} className="cursor-pointer text-xs font-mono text-text-secondary hover:text-text-primary uppercase transition-colors">
+                  Cancel
+                </button>
+              )}
+            </form>
+          )}
+        </div>
+
+        {/* Step 6: KPI row */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+          <KpiCard
+            label="BF% Navy"
+            value={navyBF !== null ? `${Math.round(navyBF * 10) / 10}%` : null}
+            delta={null}
+            deltaPositive={null}
+            improvementDirection="down"
+          />
+          <KpiCard
+            label="BF% Samsung"
+            value={latestBF ? `${latestBF.body_fat_pct}%` : null}
+            delta={null}
+            deltaPositive={null}
+            improvementDirection="down"
+          />
+          <KpiCard
+            label="W/H Ratio"
+            value={whRatio !== null ? String(Math.round(whRatio * 100) / 100) : null}
+            delta={null}
+            deltaPositive={null}
+            improvementDirection="down"
+          />
+          <KpiCard
+            label="Weight"
+            value={latestWeight ? `${latestWeight.weight} lbs` : null}
+            delta={weightDelta30d !== null ? `${weightDelta30d > 0 ? '+' : ''}${weightDelta30d} vs 30d avg` : null}
+            deltaPositive={weightDelta30d !== null ? weightDelta30d > 0 : null}
+            improvementDirection="down"
+          />
+        </div>
+
+        {/* Step 8: Sparkline grid (replaces old circumference LineChart) */}
         {filteredCircumferenceReadings.length > 0 && (
-          <div className="mt-6 mb-6" aria-label="Circumference trend chart">
-            <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={circumferenceChartData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke={TOKEN_CHART_GRID} />
-                <XAxis
-                  dataKey="recorded_at"
-                  tickFormatter={formatCentralShort}
-                  tick={{ fill: TOKEN_TEXT_SECONDARY, fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }}
-                  axisLine={false}
-                  tickLine={false}
+          <div className="mt-4 mb-6" aria-label="Circumference trend chart">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-4">
+              {[
+                { label: 'Abdomen', key: 'abdomen', color: '#7D8590' },
+                { label: 'Hip',     key: 'hip',     color: '#7D8590' },
+                { label: 'Neck',    key: 'neck',    color: '#0E4429' },
+                { label: 'Chest',   key: 'chest',   color: '#39D353' },
+                { label: 'Biceps',  key: 'biceps',  color: '#39D353' },
+                { label: 'Quads',   key: 'quads',   color: '#26A641' },
+                { label: 'Calf',    key: 'calf',    color: '#006D32' },
+              ].map(({ label, key, color }) => (
+                <SparklineCard
+                  key={key}
+                  label={label}
+                  unit="cm"
+                  color={color}
+                  improvementDirection="down"
+                  data={filteredCircumferenceReadings
+                    .filter(r => (r[key as keyof CircumferenceReading] as number) > 0)
+                    .map(r => ({ date: r.recorded_at, value: r[key as keyof CircumferenceReading] as number }))}
                 />
-                <YAxis
-                  domain={circDomain}
-                  tick={{ fill: TOKEN_TEXT_SECONDARY, fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <Tooltip content={<CircumferenceTooltip />} />
-                <Line
-                  type="monotone"
-                  dataKey="abdomen"
-                  stroke={ABDOMEN_COLOR}
-                  strokeWidth={2}
-                  dot={{ fill: ABDOMEN_COLOR, r: 3 }}
-                  activeDot={{ r: 5 }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="biceps"
-                  stroke={BICEPS_COLOR}
-                  strokeWidth={2}
-                  dot={{ fill: BICEPS_COLOR, r: 3 }}
-                  activeDot={{ r: 5 }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="quads"
-                  stroke={QUADS_COLOR}
-                  strokeWidth={2}
-                  dot={{ fill: QUADS_COLOR, r: 3 }}
-                  activeDot={{ r: 5 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+              ))}
+            </div>
           </div>
         )}
 
@@ -677,12 +809,14 @@ export function BodyCompositionSection({
                     className="flex items-center justify-between gap-4 px-3 py-2 rounded-sm bg-background hover:bg-white/5 transition-colors group"
                   >
                     <span className="text-text-secondary text-xs font-mono shrink-0">{formatCentral(r.recorded_at)}</span>
-                    <span className="text-sm font-bold font-mono shrink-0">
-                      <span style={{ color: ABDOMEN_COLOR }}>{r.abdomen}</span>
-                      <span className="text-text-secondary mx-1">/</span>
-                      <span style={{ color: BICEPS_COLOR }}>{r.biceps}</span>
-                      <span className="text-text-secondary mx-1">/</span>
-                      <span style={{ color: QUADS_COLOR }}>{r.quads}</span>
+                    <span className="text-sm font-bold font-mono shrink-0 flex gap-1 items-baseline flex-wrap">
+                      <span className="text-text-secondary">{r.abdomen}</span>
+                      {r.biceps > 0 && <><span className="text-text-secondary mx-0.5">/</span><span className="text-accent-4">{r.biceps}</span></>}
+                      {r.quads > 0 && <><span className="text-text-secondary mx-0.5">/</span><span className="text-accent-3">{r.quads}</span></>}
+                      {r.neck ? <><span className="text-text-secondary mx-0.5">/</span><span className="text-text-secondary">{r.neck}</span></> : null}
+                      {r.hip ? <><span className="text-text-secondary mx-0.5">/</span><span className="text-text-secondary">{r.hip}</span></> : null}
+                      {r.chest ? <><span className="text-text-secondary mx-0.5">/</span><span className="text-text-secondary">{r.chest}</span></> : null}
+                      {r.calf ? <><span className="text-text-secondary mx-0.5">/</span><span className="text-text-secondary">{r.calf}</span></> : null}
                       <span className="text-text-secondary text-xs ml-1">cm</span>
                     </span>
                     {r.notes && <span className="text-text-secondary text-xs font-mono truncate flex-1">{r.notes}</span>}
