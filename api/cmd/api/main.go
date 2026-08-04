@@ -523,6 +523,10 @@ func main() {
 				Abdomen    float64 `json:"abdomen"`
 				Biceps     float64 `json:"biceps"`
 				Quads      float64 `json:"quads"`
+				Neck       float64 `json:"neck"`
+				Hip        float64 `json:"hip"`
+				Chest      float64 `json:"chest"`
+				Calf       float64 `json:"calf"`
 				Notes      string  `json:"notes"`
 				RecordedAt string  `json:"recorded_at"`
 			}
@@ -543,7 +547,7 @@ func main() {
 				}
 				recordedAt = parsed.UTC()
 			}
-			reading, err := habitService.CreateCircumferenceReading(r.Context(), req.Abdomen, req.Biceps, req.Quads, req.Notes, recordedAt)
+			reading, err := habitService.CreateCircumferenceReading(r.Context(), req.Abdomen, req.Biceps, req.Quads, req.Neck, req.Hip, req.Chest, req.Calf, req.Notes, recordedAt)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return

@@ -277,7 +277,7 @@ func TestCreateCircumferenceReading(t *testing.T) {
 	svc := NewHabitService(repo)
 
 	now := time.Now().UTC()
-	r, err := svc.CreateCircumferenceReading(context.Background(), 36.5, 14.0, 22.0, "post-workout", now)
+	r, err := svc.CreateCircumferenceReading(context.Background(), 36.5, 14.0, 22.0, 0, 0, 0, 0, "post-workout", now)
 	if err != nil {
 		t.Fatalf("CreateCircumferenceReading failed: %v", err)
 	}

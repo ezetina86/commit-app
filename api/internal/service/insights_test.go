@@ -132,8 +132,8 @@ func (m *mockHabitRepository) DeleteWeightReading(ctx context.Context, id string
 	}
 	return errors.New("record not found")
 }
-func (m *mockHabitRepository) CreateCircumferenceReading(ctx context.Context, abdomen, biceps, quads float64, notes string, recordedAt time.Time) (*models.CircumferenceReading, error) {
-	r := &models.CircumferenceReading{ID: "mock-circ-id", Abdomen: abdomen, Biceps: biceps, Quads: quads, Notes: notes, RecordedAt: recordedAt}
+func (m *mockHabitRepository) CreateCircumferenceReading(ctx context.Context, abdomen, biceps, quads, neck, hip, chest, calf float64, notes string, recordedAt time.Time) (*models.CircumferenceReading, error) {
+	r := &models.CircumferenceReading{ID: "mock-circ-id", Abdomen: abdomen, Biceps: biceps, Quads: quads, Neck: neck, Hip: hip, Chest: chest, Calf: calf, Notes: notes, RecordedAt: recordedAt}
 	m.circumferenceReadings = append(m.circumferenceReadings, r)
 	return r, nil
 }
@@ -151,6 +151,21 @@ func (m *mockHabitRepository) DeleteCircumferenceReading(ctx context.Context, id
 		}
 	}
 	return errors.New("record not found")
+}
+func (m *mockHabitRepository) GetUserProfile(ctx context.Context) (*models.UserProfile, error) {
+	return nil, nil
+}
+func (m *mockHabitRepository) UpsertUserProfile(ctx context.Context, heightCm float64) (*models.UserProfile, error) {
+	return &models.UserProfile{HeightCm: heightCm}, nil
+}
+func (m *mockHabitRepository) CreateBodyFatReading(ctx context.Context, bodyFatPct float64, notes string, recordedAt time.Time) (*models.BodyFatReading, error) {
+	return &models.BodyFatReading{}, nil
+}
+func (m *mockHabitRepository) ListBodyFatReadings(ctx context.Context) ([]*models.BodyFatReading, error) {
+	return []*models.BodyFatReading{}, nil
+}
+func (m *mockHabitRepository) DeleteBodyFatReading(ctx context.Context, id string) error {
+	return nil
 }
 func (m *mockHabitRepository) GetSetting(ctx context.Context, key string) (string, error) {
 	return "", errors.New("record not found")
