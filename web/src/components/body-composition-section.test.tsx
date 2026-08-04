@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { BodyCompositionSection, type WeightReading, type CircumferenceReading } from './body-composition-section';
+import { BodyCompositionSection } from './body-composition-section';
+import type { WeightReading, CircumferenceReading } from '../types/body-composition';
 
 global.ResizeObserver = class {
   observe() {}
@@ -40,6 +41,11 @@ const defaultProps = {
   onDeleteWeight: vi.fn().mockResolvedValue(undefined),
   onAddCircumference: vi.fn().mockResolvedValue(undefined),
   onDeleteCircumference: vi.fn().mockResolvedValue(undefined),
+  bodyFatReadings: [],
+  userProfile: null,
+  onSaveProfile: vi.fn().mockResolvedValue(undefined),
+  onAddBodyFat: vi.fn().mockResolvedValue(undefined),
+  onDeleteBodyFat: vi.fn().mockResolvedValue(undefined),
 };
 
 describe('BodyCompositionSection', () => {
@@ -345,6 +351,9 @@ describe('BodyCompositionSection', () => {
   const onDeleteWeight = vi.fn().mockResolvedValue(undefined);
   const onAddCircumference = vi.fn().mockResolvedValue(undefined);
   const onDeleteCircumference = vi.fn().mockResolvedValue(undefined);
+  const onSaveProfile = vi.fn().mockResolvedValue(undefined);
+  const onAddBodyFat = vi.fn().mockResolvedValue(undefined);
+  const onDeleteBodyFat = vi.fn().mockResolvedValue(undefined);
 
   const makeWeightReading = (overrides: Partial<WeightReading> = {}): WeightReading => ({
     id: 'w1',
@@ -365,12 +374,12 @@ describe('BodyCompositionSection', () => {
   });
 
   it('renders weight since-date filter input', () => {
-    render(<BodyCompositionSection weightReadings={[]} circumferenceReadings={[]} onAddWeight={onAddWeight} onDeleteWeight={onDeleteWeight} onAddCircumference={onAddCircumference} onDeleteCircumference={onDeleteCircumference} />);
+    render(<BodyCompositionSection weightReadings={[]} circumferenceReadings={[]} onAddWeight={onAddWeight} onDeleteWeight={onDeleteWeight} onAddCircumference={onAddCircumference} onDeleteCircumference={onDeleteCircumference} bodyFatReadings={[]} userProfile={null} onSaveProfile={onSaveProfile} onAddBodyFat={onAddBodyFat} onDeleteBodyFat={onDeleteBodyFat} />);
     expect(screen.getByLabelText('Filter weight readings from date')).toBeInTheDocument();
   });
 
   it('renders circumference since-date filter input', () => {
-    render(<BodyCompositionSection weightReadings={[]} circumferenceReadings={[]} onAddWeight={onAddWeight} onDeleteWeight={onDeleteWeight} onAddCircumference={onAddCircumference} onDeleteCircumference={onDeleteCircumference} />);
+    render(<BodyCompositionSection weightReadings={[]} circumferenceReadings={[]} onAddWeight={onAddWeight} onDeleteWeight={onDeleteWeight} onAddCircumference={onAddCircumference} onDeleteCircumference={onDeleteCircumference} bodyFatReadings={[]} userProfile={null} onSaveProfile={onSaveProfile} onAddBodyFat={onAddBodyFat} onDeleteBodyFat={onDeleteBodyFat} />);
     expect(screen.getByLabelText('Filter circumference readings from date')).toBeInTheDocument();
   });
 
@@ -379,7 +388,7 @@ describe('BodyCompositionSection', () => {
       makeWeightReading({ id: 'w1', weight: 180 }),
       makeWeightReading({ id: 'w2', weight: 178 }),
     ];
-    render(<BodyCompositionSection weightReadings={weightReadings} circumferenceReadings={[]} onAddWeight={onAddWeight} onDeleteWeight={onDeleteWeight} onAddCircumference={onAddCircumference} onDeleteCircumference={onDeleteCircumference} />);
+    render(<BodyCompositionSection weightReadings={weightReadings} circumferenceReadings={[]} onAddWeight={onAddWeight} onDeleteWeight={onDeleteWeight} onAddCircumference={onAddCircumference} onDeleteCircumference={onDeleteCircumference} bodyFatReadings={[]} userProfile={null} onSaveProfile={onSaveProfile} onAddBodyFat={onAddBodyFat} onDeleteBodyFat={onDeleteBodyFat} />);
     const avgEl = screen.getByLabelText('Average weight');
     expect(avgEl.textContent).toContain('179');
     expect(avgEl.textContent).toContain('2 readings');
@@ -390,7 +399,7 @@ describe('BodyCompositionSection', () => {
       makeWeightReading({ id: 'w1', weight: 190, recorded_at: daysAgo(40) }),
       makeWeightReading({ id: 'w2', weight: 180, recorded_at: daysAgo(1) }),
     ];
-    render(<BodyCompositionSection weightReadings={weightReadings} circumferenceReadings={[]} onAddWeight={onAddWeight} onDeleteWeight={onDeleteWeight} onAddCircumference={onAddCircumference} onDeleteCircumference={onDeleteCircumference} />);
+    render(<BodyCompositionSection weightReadings={weightReadings} circumferenceReadings={[]} onAddWeight={onAddWeight} onDeleteWeight={onDeleteWeight} onAddCircumference={onAddCircumference} onDeleteCircumference={onDeleteCircumference} bodyFatReadings={[]} userProfile={null} onSaveProfile={onSaveProfile} onAddBodyFat={onAddBodyFat} onDeleteBodyFat={onDeleteBodyFat} />);
     fireEvent.change(screen.getByLabelText('Filter weight readings from date'), { target: { value: daysAgo(2).split('T')[0] } });
     const avgEl = screen.getByLabelText('Average weight');
     expect(avgEl.textContent).toContain('180');
@@ -399,7 +408,7 @@ describe('BodyCompositionSection', () => {
 
   it('shows Avg since label for weight when sinceDateWeight is set', () => {
     const weightReadings = [makeWeightReading({ id: 'w1', weight: 180, recorded_at: daysAgo(1) })];
-    render(<BodyCompositionSection weightReadings={weightReadings} circumferenceReadings={[]} onAddWeight={onAddWeight} onDeleteWeight={onDeleteWeight} onAddCircumference={onAddCircumference} onDeleteCircumference={onDeleteCircumference} />);
+    render(<BodyCompositionSection weightReadings={weightReadings} circumferenceReadings={[]} onAddWeight={onAddWeight} onDeleteWeight={onDeleteWeight} onAddCircumference={onAddCircumference} onDeleteCircumference={onDeleteCircumference} bodyFatReadings={[]} userProfile={null} onSaveProfile={onSaveProfile} onAddBodyFat={onAddBodyFat} onDeleteBodyFat={onDeleteBodyFat} />);
     const filterDate = daysAgo(2).split('T')[0];
     fireEvent.change(screen.getByLabelText('Filter weight readings from date'), { target: { value: filterDate } });
     expect(screen.getByLabelText('Average weight').textContent).toContain(`Avg since ${filterDate}`);
@@ -408,7 +417,7 @@ describe('BodyCompositionSection', () => {
   it('weight and circumference sinceDate states are independent', () => {
     const weightReadings = [makeWeightReading({ id: 'w1', weight: 180, recorded_at: daysAgo(1) })];
     const circumferenceReadings = [makeCircumferenceReading({ id: 'c1', recorded_at: daysAgo(1) })];
-    render(<BodyCompositionSection weightReadings={weightReadings} circumferenceReadings={circumferenceReadings} onAddWeight={onAddWeight} onDeleteWeight={onDeleteWeight} onAddCircumference={onAddCircumference} onDeleteCircumference={onDeleteCircumference} />);
+    render(<BodyCompositionSection weightReadings={weightReadings} circumferenceReadings={circumferenceReadings} onAddWeight={onAddWeight} onDeleteWeight={onDeleteWeight} onAddCircumference={onAddCircumference} onDeleteCircumference={onDeleteCircumference} bodyFatReadings={[]} userProfile={null} onSaveProfile={onSaveProfile} onAddBodyFat={onAddBodyFat} onDeleteBodyFat={onDeleteBodyFat} />);
     fireEvent.change(screen.getByLabelText('Filter weight readings from date'), { target: { value: '2029-01-01' } });
     expect(screen.queryByLabelText('Weight trend chart')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Circumference trend chart')).toBeInTheDocument();

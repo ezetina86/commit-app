@@ -20,6 +20,7 @@ import {
   generateBodyCompositionMarkdown,
   downloadMarkdownFile,
 } from '../utils/export-body-composition';
+import type { UserProfile, WeightReading, CircumferenceReading, BodyFatReading } from '../types/body-composition';
 
 // Design token mirrors — Recharts SVG props require literal values, not CSS vars
 const ABDOMEN_COLOR = '#7D8590';
@@ -29,22 +30,6 @@ const WEIGHT_COLOR = '#39D353';
 const TOKEN_TEXT_SECONDARY = '#7D8590';
 const TOKEN_CHART_GRID = '#ffffff0d';
 
-export interface WeightReading {
-  id: string;
-  weight: number;
-  notes: string;
-  recorded_at: string;
-}
-
-export interface CircumferenceReading {
-  id: string;
-  abdomen: number;
-  biceps: number;
-  quads: number;
-  notes: string;
-  recorded_at: string;
-}
-
 interface Props {
   weightReadings: WeightReading[];
   circumferenceReadings: CircumferenceReading[];
@@ -52,6 +37,11 @@ interface Props {
   onDeleteWeight: (id: string) => Promise<void>;
   onAddCircumference: (abdomen: number, biceps: number, quads: number, neck: number, hip: number, chest: number, calf: number, notes: string, recordedAt: string) => Promise<void>;
   onDeleteCircumference: (id: string) => Promise<void>;
+  bodyFatReadings: BodyFatReading[];
+  userProfile: UserProfile | null;
+  onSaveProfile: (heightCm: number) => Promise<void>;
+  onAddBodyFat: (bodyFatPct: number, notes: string, recordedAt: string) => Promise<void>;
+  onDeleteBodyFat: (id: string) => Promise<void>;
 }
 
 type AlertState = 'catabolism_warning' | 'protein_deficit_warning' | 'optimal' | null;
@@ -120,6 +110,11 @@ export function BodyCompositionSection({
   onDeleteWeight,
   onAddCircumference,
   onDeleteCircumference,
+  bodyFatReadings: _bodyFatReadings,
+  userProfile: _userProfile,
+  onSaveProfile: _onSaveProfile,
+  onAddBodyFat: _onAddBodyFat,
+  onDeleteBodyFat: _onDeleteBodyFat,
 }: Props) {
   const today = new Intl.DateTimeFormat('en-CA').format(new Date());
 
