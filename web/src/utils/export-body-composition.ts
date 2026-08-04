@@ -1,25 +1,11 @@
 /**
  * Body Composition Markdown export utilities.
  *
- * Pure functions that generate a structured Markdown report from weight
- * and circumference readings, plus a browser-download helper.
+ * Pure functions that generate a structured Markdown report from weight,
+ * circumference, and body-fat readings, plus a browser-download helper.
  */
 
-export interface WeightReading {
-  id: string;
-  weight: number;
-  notes: string;
-  recorded_at: string;
-}
-
-export interface CircumferenceReading {
-  id: string;
-  abdomen: number;
-  biceps: number;
-  quads: number;
-  notes: string;
-  recorded_at: string;
-}
+import type { WeightReading, CircumferenceReading, BodyFatReading, UserProfile } from '../types/body-composition';
 
 const formatCentral = (iso: string): string =>
   new Intl.DateTimeFormat('en-US', {
@@ -30,12 +16,16 @@ const formatCentral = (iso: string): string =>
   }).format(new Date(iso));
 
 const round1 = (n: number): number => Math.round(n * 10) / 10;
+// ponytail: fmt returns '—' for 0/undefined — same rule as the component
+const fmt = (v: number | undefined): string => (v && v > 0 ? String(v) : '—');
 
 // ── Markdown generation ─────────────────────────────────────────────
 
 export function generateBodyCompositionMarkdown(
   weightReadings: WeightReading[],
   circumferenceReadings: CircumferenceReading[],
+  bodyFatReadings: BodyFatReading[],
+  profile: UserProfile | null,
 ): string {
   const lines: string[] = [];
   const now = new Intl.DateTimeFormat('en-US', {
@@ -51,6 +41,7 @@ export function generateBodyCompositionMarkdown(
   lines.push('# Body Composition Report');
   lines.push('');
   lines.push(`> Generated on ${now}`);
+  if (profile) lines.push(`> Height: ${profile.height_cm} cm`);
   lines.push('');
 
   // ── Weight ──
@@ -72,8 +63,8 @@ export function generateBodyCompositionMarkdown(
 
     lines.push('### Summary');
     lines.push('');
-    lines.push(`| Metric | Value |`);
-    lines.push(`| --- | --- |`);
+    lines.push('| Metric | Value |');
+    lines.push('| --- | --- |');
     lines.push(`| Total readings | ${sorted.length} |`);
     lines.push(`| Average | ${avg} lbs |`);
     lines.push(`| Min | ${min} lbs |`);
@@ -86,6 +77,36 @@ export function generateBodyCompositionMarkdown(
     for (const r of sorted) {
       const notes = r.notes ? r.notes.replace(/\|/g, '\\|') : '';
       lines.push(`| ${formatCentral(r.recorded_at)} | ${r.weight} | ${notes} |`);
+    }
+    lines.push('');
+  }
+
+  // ── Body Fat ──
+  if (bodyFatReadings.length > 0) {
+    lines.push('## Body Fat %');
+    lines.push('');
+    const sorted = [...bodyFatReadings].sort(
+      (a, b) => new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime(),
+    );
+    const pcts = sorted.map((r) => r.body_fat_pct);
+    const avg = round1(pcts.reduce((s, v) => s + v, 0) / pcts.length);
+
+    lines.push('### Summary');
+    lines.push('');
+    lines.push('| Metric | Value |');
+    lines.push('| --- | --- |');
+    lines.push(`| Total readings | ${sorted.length} |`);
+    lines.push(`| Average | ${avg}% |`);
+    lines.push(`| Min | ${round1(Math.min(...pcts))}% |`);
+    lines.push(`| Max | ${round1(Math.max(...pcts))}% |`);
+    lines.push('');
+    lines.push('### Readings');
+    lines.push('');
+    lines.push('| Date | BF% | Notes |');
+    lines.push('| --- | ---: | --- |');
+    for (const r of sorted) {
+      const notes = r.notes ? r.notes.replace(/\|/g, '\\|') : '';
+      lines.push(`| ${formatCentral(r.recorded_at)} | ${r.body_fat_pct} | ${notes} |`);
     }
     lines.push('');
   }
@@ -106,6 +127,12 @@ export function generateBodyCompositionMarkdown(
     const avgBiceps = round1(sorted.reduce((s, r) => s + r.biceps, 0) / sorted.length);
     const avgQuads = round1(sorted.reduce((s, r) => s + r.quads, 0) / sorted.length);
 
+    // Optional fields: only average non-zero values
+    const neckVals = sorted.map((r) => r.neck ?? 0).filter((v) => v > 0);
+    const hipVals = sorted.map((r) => r.hip ?? 0).filter((v) => v > 0);
+    const chestVals = sorted.map((r) => r.chest ?? 0).filter((v) => v > 0);
+    const calfVals = sorted.map((r) => r.calf ?? 0).filter((v) => v > 0);
+
     lines.push('### Summary');
     lines.push('');
     lines.push('| Metric | Value |');
@@ -114,14 +141,18 @@ export function generateBodyCompositionMarkdown(
     lines.push(`| Avg abdomen | ${avgAbdomen} cm |`);
     lines.push(`| Avg biceps | ${avgBiceps} cm |`);
     lines.push(`| Avg quads | ${avgQuads} cm |`);
+    if (neckVals.length > 0) lines.push(`| Avg neck | ${round1(neckVals.reduce((s, v) => s + v, 0) / neckVals.length)} cm |`);
+    if (hipVals.length > 0) lines.push(`| Avg hip | ${round1(hipVals.reduce((s, v) => s + v, 0) / hipVals.length)} cm |`);
+    if (chestVals.length > 0) lines.push(`| Avg chest | ${round1(chestVals.reduce((s, v) => s + v, 0) / chestVals.length)} cm |`);
+    if (calfVals.length > 0) lines.push(`| Avg calf | ${round1(calfVals.reduce((s, v) => s + v, 0) / calfVals.length)} cm |`);
     lines.push('');
     lines.push('### Readings');
     lines.push('');
-    lines.push('| Date | Abdomen (cm) | Biceps (cm) | Quads (cm) | Notes |');
-    lines.push('| --- | ---: | ---: | ---: | --- |');
+    lines.push('| Date | Abdomen | Biceps | Quads | Neck | Hip | Chest | Calf | Notes |');
+    lines.push('| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |');
     for (const r of sorted) {
       const notes = r.notes ? r.notes.replace(/\|/g, '\\|') : '';
-      lines.push(`| ${formatCentral(r.recorded_at)} | ${r.abdomen} | ${r.biceps} | ${r.quads} | ${notes} |`);
+      lines.push(`| ${formatCentral(r.recorded_at)} | ${r.abdomen} | ${r.biceps} | ${r.quads} | ${fmt(r.neck)} | ${fmt(r.hip)} | ${fmt(r.chest)} | ${fmt(r.calf)} | ${notes} |`);
     }
     lines.push('');
   }

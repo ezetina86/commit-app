@@ -366,7 +366,7 @@ export function BodyCompositionSection({
           type="button"
           disabled={weightReadings.length === 0 && circumferenceReadings.length === 0}
           onClick={() => {
-            const md = generateBodyCompositionMarkdown(weightReadings, circumferenceReadings);
+            const md = generateBodyCompositionMarkdown(weightReadings, circumferenceReadings, bodyFatReadings, userProfile);
             downloadMarkdownFile(md);
           }}
           className="text-xs font-mono font-bold uppercase tracking-wider px-3 py-1.5 rounded-sm border border-white/10 text-text-secondary hover:text-text-primary hover:border-white/25 transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
