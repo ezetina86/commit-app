@@ -50,7 +50,7 @@ interface Props {
   circumferenceReadings: CircumferenceReading[];
   onAddWeight: (weight: number, notes: string, recordedAt: string) => Promise<void>;
   onDeleteWeight: (id: string) => Promise<void>;
-  onAddCircumference: (abdomen: number, biceps: number, quads: number, notes: string, recordedAt: string) => Promise<void>;
+  onAddCircumference: (abdomen: number, biceps: number, quads: number, neck: number, hip: number, chest: number, calf: number, notes: string, recordedAt: string) => Promise<void>;
   onDeleteCircumference: (id: string) => Promise<void>;
 }
 
@@ -237,7 +237,8 @@ export function BodyCompositionSection({
     setCircumferenceFormError('');
     setCircumferenceSubmitting(true);
     try {
-      await onAddCircumference(a, b, q, circumferenceForm.notes, circumferenceForm.date);
+      // ponytail: neck/hip/chest/calf default to 0 until Task 10 adds their form fields
+      await onAddCircumference(a, b, q, 0, 0, 0, 0, circumferenceForm.notes, circumferenceForm.date);
       setCircumferenceForm(f => ({ ...f, abdomen: '', biceps: '', quads: '', notes: '' }));
     } finally {
       setCircumferenceSubmitting(false);

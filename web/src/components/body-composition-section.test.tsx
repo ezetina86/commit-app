@@ -244,7 +244,7 @@ describe('BodyCompositionSection', () => {
     await user.type(screen.getByLabelText('Quads'), '22.0');
     await user.click(screen.getByRole('button', { name: /log measurements/i }));
     await waitFor(() => {
-      expect(defaultProps.onAddCircumference).toHaveBeenCalledWith(36.5, 14.0, 22.0, '', expect.any(String));
+      expect(defaultProps.onAddCircumference).toHaveBeenCalledWith(36.5, 14.0, 22.0, 0, 0, 0, 0, '', expect.any(String));
     });
   });
 

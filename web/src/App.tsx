@@ -7,7 +7,8 @@ import { Toast } from './components/toast';
 import { BloodPressureSection, type BloodPressureReading } from './components/blood-pressure-section';
 import { EloSection, type EloReading } from './components/elo-section';
 import { StepsSection, type StepsReading } from './components/steps-section';
-import { BodyCompositionSection, type WeightReading, type CircumferenceReading } from './components/body-composition-section';
+import { BodyCompositionSection } from './components/body-composition-section';
+import type { WeightReading, CircumferenceReading, UserProfile, BodyFatReading } from './types/body-composition';
 
 interface Habit {
   id: string;
@@ -30,6 +31,8 @@ function App() {
   const [stepsTarget, setStepsTarget] = useState(15000);
   const [weightReadings, setWeightReadings] = useState<WeightReading[]>([]);
   const [circumferenceReadings, setCircumferenceReadings] = useState<CircumferenceReading[]>([]);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [bodyFatReadings, setBodyFatReadings] = useState<BodyFatReading[]>([]);
   const [insights, setInsights] = useState<Insight[]>([]);
   const [newHabitName, setNewHabitName] = useState('');
   const [newHabitUnit, setNewHabitUnit] = useState('');
@@ -130,6 +133,27 @@ function App() {
     setCircumferenceReadings(Array.isArray(data) ? data : []);
   }, []);
 
+  const fetchUserProfile = useCallback(async () => {
+    try {
+      const res = await fetch('/api/profile');
+      if (res.status === 404) { setUserProfile(null); return; }
+      const data = await res.json();
+      setUserProfile(data);
+    } catch (err) {
+      console.error('Failed to fetch user profile:', err);
+    }
+  }, []);
+
+  const fetchBodyFatReadings = useCallback(async () => {
+    try {
+      const res = await fetch('/api/body-fat');
+      const data = await res.json();
+      setBodyFatReadings(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('Failed to fetch body fat readings:', err);
+    }
+  }, []);
+
   useEffect(() => {
     fetchHabitsAndInsights(showArchived);
     fetchBPReadings();
@@ -137,7 +161,9 @@ function App() {
     fetchStepsData();
     fetchWeightReadings();
     fetchCircumferenceReadings();
-  }, [showArchived, fetchHabitsAndInsights, fetchBPReadings, fetchEloData, fetchStepsData, fetchWeightReadings, fetchCircumferenceReadings]);
+    fetchUserProfile();
+    fetchBodyFatReadings();
+  }, [showArchived, fetchHabitsAndInsights, fetchBPReadings, fetchEloData, fetchStepsData, fetchWeightReadings, fetchCircumferenceReadings, fetchUserProfile, fetchBodyFatReadings]);
 
   const allTags = useMemo(() => {
     const tags = new Set<string>();
@@ -228,11 +254,11 @@ function App() {
     setToast({ message: 'Weight entry deleted', visible: true });
   };
 
-  const handleAddCircumference = async (abdomen: number, biceps: number, quads: number, notes: string, recordedAt: string) => {
+  const handleAddCircumference = async (abdomen: number, biceps: number, quads: number, neck: number, hip: number, chest: number, calf: number, notes: string, recordedAt: string) => {
     const res = await fetch('/api/circumference', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ abdomen, biceps, quads, notes, recorded_at: `${recordedAt}T12:00:00Z` }),
+      body: JSON.stringify({ abdomen, biceps, quads, neck, hip, chest, calf, notes, recorded_at: `${recordedAt}T12:00:00Z` }),
     });
     if (!res.ok) { console.error('Failed to log circumference:', res.status); return; }
     await fetchCircumferenceReadings();
@@ -244,6 +270,35 @@ function App() {
     if (!res.ok) { console.error('Failed to delete circumference reading:', res.status); return; }
     await fetchCircumferenceReadings();
     setToast({ message: 'Measurement entry deleted', visible: true });
+  };
+
+  const handleSaveProfile = async (heightCm: number) => {
+    const res = await fetch('/api/profile', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ height_cm: heightCm }),
+    });
+    if (!res.ok) { console.error('Failed to save profile:', res.status); return; }
+    await fetchUserProfile();
+    setToast({ message: 'Height saved', visible: true });
+  };
+
+  const handleAddBodyFat = async (bodyFatPct: number, notes: string, recordedAt: string) => {
+    const res = await fetch('/api/body-fat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ body_fat_pct: bodyFatPct, notes, recorded_at: `${recordedAt}T12:00:00Z` }),
+    });
+    if (!res.ok) { console.error('Failed to add body fat reading:', res.status); return; }
+    await fetchBodyFatReadings();
+    setToast({ message: 'Body fat reading logged', visible: true });
+  };
+
+  const handleDeleteBodyFat = async (id: string) => {
+    const res = await fetch(`/api/body-fat/${id}`, { method: 'DELETE' });
+    if (!res.ok) { console.error('Failed to delete body fat reading:', res.status); return; }
+    await fetchBodyFatReadings();
+    setToast({ message: 'Body fat entry deleted', visible: true });
   };
 
   const handleStepsTargetChange = async (newTarget: number) => {
@@ -800,10 +855,15 @@ function App() {
         <BodyCompositionSection
           weightReadings={weightReadings}
           circumferenceReadings={circumferenceReadings}
+          bodyFatReadings={bodyFatReadings}
+          userProfile={userProfile}
           onAddWeight={handleAddWeight}
           onDeleteWeight={handleDeleteWeight}
           onAddCircumference={handleAddCircumference}
           onDeleteCircumference={handleDeleteCircumference}
+          onSaveProfile={handleSaveProfile}
+          onAddBodyFat={handleAddBodyFat}
+          onDeleteBodyFat={handleDeleteBodyFat}
         />
 
         {/* Insights Panel — fixed overlay, bottom-right */}
