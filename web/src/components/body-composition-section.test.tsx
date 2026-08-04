@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BodyCompositionSection } from './body-composition-section';
-import type { WeightReading, CircumferenceReading } from '../types/body-composition';
+import type { WeightReading, CircumferenceReading, UserProfile } from '../types/body-composition';
 
 global.ResizeObserver = class {
   observe() {}
@@ -421,5 +421,55 @@ describe('BodyCompositionSection', () => {
     fireEvent.change(screen.getByLabelText('Filter weight readings from date'), { target: { value: '2029-01-01' } });
     expect(screen.queryByLabelText('Weight trend chart')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Circumference trend chart')).toBeInTheDocument();
+  });
+
+  // ── Profile row ───────────────────────────────────────────────────────────
+
+  it('shows height setup form when userProfile is null', () => {
+    render(<BodyCompositionSection {...defaultProps} userProfile={null} />);
+    expect(screen.getByPlaceholderText('Height (cm)')).toBeTruthy();
+  });
+
+  it('shows height text when userProfile is set', () => {
+    const profile: UserProfile = { height_cm: 178 };
+    render(<BodyCompositionSection {...defaultProps} userProfile={profile} />);
+    expect(screen.getByText(/178 cm/)).toBeTruthy();
+  });
+
+  // ── KPI dashes ────────────────────────────────────────────────────────────
+
+  it('BF% Navy shows dash when userProfile is null', () => {
+    render(<BodyCompositionSection {...defaultProps} userProfile={null} />);
+    expect(screen.getAllByText('—').length).toBeGreaterThan(0);
+  });
+
+  it('W/H ratio shows dash when circumference reading has no hip value', () => {
+    const profile: UserProfile = { height_cm: 178 };
+    const circNoHip: CircumferenceReading = { id: '1', abdomen: 90, biceps: 38, quads: 58, notes: '', recorded_at: '2026-08-01T12:00:00Z' };
+    render(<BodyCompositionSection {...defaultProps} userProfile={profile} circumferenceReadings={[circNoHip]} />);
+    expect(screen.getAllByText('—').length).toBeGreaterThan(0);
+  });
+
+  // ── Sparkline grid ────────────────────────────────────────────────────────
+
+  it('renders all 7 sparkline card labels', () => {
+    const reading: CircumferenceReading = { id: '1', abdomen: 90, biceps: 38, quads: 58, neck: 38, hip: 100, chest: 100, calf: 38, notes: '', recorded_at: '2026-08-01T12:00:00Z' };
+    render(<BodyCompositionSection {...defaultProps} circumferenceReadings={[reading]} />);
+    expect(screen.getByText('Abdomen')).toBeTruthy();
+    expect(screen.getByText('Hip')).toBeTruthy();
+    expect(screen.getByText('Neck')).toBeTruthy();
+    expect(screen.getByText('Chest')).toBeTruthy();
+    expect(screen.getByText('Biceps')).toBeTruthy();
+    expect(screen.getByText('Quads')).toBeTruthy();
+    expect(screen.getByText('Calf')).toBeTruthy();
+  });
+
+  // ── Circumference form validation ─────────────────────────────────────────
+
+  it('circumference form submit is blocked when all fields are zero', () => {
+    const onAdd = vi.fn();
+    render(<BodyCompositionSection {...defaultProps} onAddCircumference={onAdd} />);
+    fireEvent.submit(screen.getByRole('form', { name: /log circumference/i }));
+    expect(onAdd).not.toHaveBeenCalled();
   });
 });
