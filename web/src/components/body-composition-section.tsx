@@ -248,15 +248,14 @@ export function BodyCompositionSection({
     return calculateDynamicDomain(vals, [], 0.05, 1);
   }, [filteredWeightReadings]);
 
-  const avgAbdomen = filteredCircumferenceReadings.length > 0
-    ? Math.round(filteredCircumferenceReadings.reduce((sum, r) => sum + r.abdomen, 0) / filteredCircumferenceReadings.length * 10) / 10
-    : null;
-  const avgBiceps = filteredCircumferenceReadings.length > 0
-    ? Math.round(filteredCircumferenceReadings.reduce((sum, r) => sum + r.biceps, 0) / filteredCircumferenceReadings.length * 10) / 10
-    : null;
-  const avgQuads = filteredCircumferenceReadings.length > 0
-    ? Math.round(filteredCircumferenceReadings.reduce((sum, r) => sum + r.quads, 0) / filteredCircumferenceReadings.length * 10) / 10
-    : null;
+  const computeAvg = (readings: CircumferenceReading[], key: keyof CircumferenceReading): number | null => {
+    const nonZero = readings.filter(r => (r[key] as number) > 0);
+    if (!nonZero.length) return null;
+    return Math.round(nonZero.reduce((s, r) => s + (r[key] as number), 0) / nonZero.length * 10) / 10;
+  };
+  const avgAbdomen = computeAvg(filteredCircumferenceReadings, 'abdomen');
+  const avgBiceps = computeAvg(filteredCircumferenceReadings, 'biceps');
+  const avgQuads = computeAvg(filteredCircumferenceReadings, 'quads');
 
   // Step 5: KPI data derivation
   const latestCirc = circumferenceReadings[0];
@@ -600,16 +599,16 @@ export function BodyCompositionSection({
           />
         </div>
 
-        {avgAbdomen !== null && (
+        {filteredCircumferenceReadings.length > 0 && (
           <div className="flex flex-wrap items-baseline gap-3 mb-3" aria-label="Average circumference">
             <span className="text-text-secondary text-xs font-mono uppercase tracking-widest">
               {circPreset === '30d' ? '30D Avg' : circPreset === '90d' ? '90D Avg' : circPreset === '1y' ? '1Y Avg' : sinceDateCircumference ? `Avg since ${sinceDateCircumference}` : 'Avg'}
             </span>
-            <span className="text-xl font-bold font-mono text-text-secondary">{avgAbdomen}</span>
+            <span className="text-xl font-bold font-mono text-text-secondary">{avgAbdomen ?? '—'}</span>
             <span className="text-text-secondary text-xs">/</span>
-            <span className="text-xl font-bold font-mono text-accent-4">{avgBiceps}</span>
+            <span className="text-xl font-bold font-mono text-accent-4">{avgBiceps ?? '—'}</span>
             <span className="text-text-secondary text-xs">/</span>
-            <span className="text-xl font-bold font-mono text-accent-3">{avgQuads}</span>
+            <span className="text-xl font-bold font-mono text-accent-3">{avgQuads ?? '—'}</span>
             <span className="text-text-secondary text-xs font-mono">cm</span>
             <span className="text-text-secondary text-xs font-mono font-bold">({filteredCircumferenceReadings.length} readings)</span>
           </div>
