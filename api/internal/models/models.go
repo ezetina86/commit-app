@@ -44,6 +44,21 @@ type CircumferenceReading struct {
 	Abdomen    float64   `json:"abdomen"`
 	Biceps     float64   `json:"biceps"`
 	Quads      float64   `json:"quads"`
+	Neck       float64   `json:"neck"`
+	Hip        float64   `json:"hip"`
+	Chest      float64   `json:"chest"`
+	Calf       float64   `json:"calf"`
+	Notes      string    `json:"notes"`
+	RecordedAt time.Time `json:"recorded_at"`
+}
+
+type UserProfile struct {
+	HeightCm float64 `json:"height_cm"`
+}
+
+type BodyFatReading struct {
+	ID         string    `json:"id"`
+	BodyFatPct float64   `json:"body_fat_pct"`
 	Notes      string    `json:"notes"`
 	RecordedAt time.Time `json:"recorded_at"`
 }
