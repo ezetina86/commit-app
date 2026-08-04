@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { BodyCompositionSection, type WeightReading, type CircumferenceReading } from './body-composition-section';
+import { BodyCompositionSection } from './body-composition-section';
+import type { WeightReading, CircumferenceReading, UserProfile } from '../types/body-composition';
 
 global.ResizeObserver = class {
   observe() {}
@@ -40,6 +41,11 @@ const defaultProps = {
   onDeleteWeight: vi.fn().mockResolvedValue(undefined),
   onAddCircumference: vi.fn().mockResolvedValue(undefined),
   onDeleteCircumference: vi.fn().mockResolvedValue(undefined),
+  bodyFatReadings: [],
+  userProfile: null,
+  onSaveProfile: vi.fn().mockResolvedValue(undefined),
+  onAddBodyFat: vi.fn().mockResolvedValue(undefined),
+  onDeleteBodyFat: vi.fn().mockResolvedValue(undefined),
 };
 
 describe('BodyCompositionSection', () => {
@@ -244,7 +250,7 @@ describe('BodyCompositionSection', () => {
     await user.type(screen.getByLabelText('Quads'), '22.0');
     await user.click(screen.getByRole('button', { name: /log measurements/i }));
     await waitFor(() => {
-      expect(defaultProps.onAddCircumference).toHaveBeenCalledWith(36.5, 14.0, 22.0, '', expect.any(String));
+      expect(defaultProps.onAddCircumference).toHaveBeenCalledWith(36.5, 14.0, 22.0, 0, 0, 0, 0, '', expect.any(String));
     });
   });
 
@@ -345,6 +351,9 @@ describe('BodyCompositionSection', () => {
   const onDeleteWeight = vi.fn().mockResolvedValue(undefined);
   const onAddCircumference = vi.fn().mockResolvedValue(undefined);
   const onDeleteCircumference = vi.fn().mockResolvedValue(undefined);
+  const onSaveProfile = vi.fn().mockResolvedValue(undefined);
+  const onAddBodyFat = vi.fn().mockResolvedValue(undefined);
+  const onDeleteBodyFat = vi.fn().mockResolvedValue(undefined);
 
   const makeWeightReading = (overrides: Partial<WeightReading> = {}): WeightReading => ({
     id: 'w1',
@@ -365,12 +374,12 @@ describe('BodyCompositionSection', () => {
   });
 
   it('renders weight since-date filter input', () => {
-    render(<BodyCompositionSection weightReadings={[]} circumferenceReadings={[]} onAddWeight={onAddWeight} onDeleteWeight={onDeleteWeight} onAddCircumference={onAddCircumference} onDeleteCircumference={onDeleteCircumference} />);
+    render(<BodyCompositionSection weightReadings={[]} circumferenceReadings={[]} onAddWeight={onAddWeight} onDeleteWeight={onDeleteWeight} onAddCircumference={onAddCircumference} onDeleteCircumference={onDeleteCircumference} bodyFatReadings={[]} userProfile={null} onSaveProfile={onSaveProfile} onAddBodyFat={onAddBodyFat} onDeleteBodyFat={onDeleteBodyFat} />);
     expect(screen.getByLabelText('Filter weight readings from date')).toBeInTheDocument();
   });
 
   it('renders circumference since-date filter input', () => {
-    render(<BodyCompositionSection weightReadings={[]} circumferenceReadings={[]} onAddWeight={onAddWeight} onDeleteWeight={onDeleteWeight} onAddCircumference={onAddCircumference} onDeleteCircumference={onDeleteCircumference} />);
+    render(<BodyCompositionSection weightReadings={[]} circumferenceReadings={[]} onAddWeight={onAddWeight} onDeleteWeight={onDeleteWeight} onAddCircumference={onAddCircumference} onDeleteCircumference={onDeleteCircumference} bodyFatReadings={[]} userProfile={null} onSaveProfile={onSaveProfile} onAddBodyFat={onAddBodyFat} onDeleteBodyFat={onDeleteBodyFat} />);
     expect(screen.getByLabelText('Filter circumference readings from date')).toBeInTheDocument();
   });
 
@@ -379,7 +388,7 @@ describe('BodyCompositionSection', () => {
       makeWeightReading({ id: 'w1', weight: 180 }),
       makeWeightReading({ id: 'w2', weight: 178 }),
     ];
-    render(<BodyCompositionSection weightReadings={weightReadings} circumferenceReadings={[]} onAddWeight={onAddWeight} onDeleteWeight={onDeleteWeight} onAddCircumference={onAddCircumference} onDeleteCircumference={onDeleteCircumference} />);
+    render(<BodyCompositionSection weightReadings={weightReadings} circumferenceReadings={[]} onAddWeight={onAddWeight} onDeleteWeight={onDeleteWeight} onAddCircumference={onAddCircumference} onDeleteCircumference={onDeleteCircumference} bodyFatReadings={[]} userProfile={null} onSaveProfile={onSaveProfile} onAddBodyFat={onAddBodyFat} onDeleteBodyFat={onDeleteBodyFat} />);
     const avgEl = screen.getByLabelText('Average weight');
     expect(avgEl.textContent).toContain('179');
     expect(avgEl.textContent).toContain('2 readings');
@@ -390,7 +399,7 @@ describe('BodyCompositionSection', () => {
       makeWeightReading({ id: 'w1', weight: 190, recorded_at: daysAgo(40) }),
       makeWeightReading({ id: 'w2', weight: 180, recorded_at: daysAgo(1) }),
     ];
-    render(<BodyCompositionSection weightReadings={weightReadings} circumferenceReadings={[]} onAddWeight={onAddWeight} onDeleteWeight={onDeleteWeight} onAddCircumference={onAddCircumference} onDeleteCircumference={onDeleteCircumference} />);
+    render(<BodyCompositionSection weightReadings={weightReadings} circumferenceReadings={[]} onAddWeight={onAddWeight} onDeleteWeight={onDeleteWeight} onAddCircumference={onAddCircumference} onDeleteCircumference={onDeleteCircumference} bodyFatReadings={[]} userProfile={null} onSaveProfile={onSaveProfile} onAddBodyFat={onAddBodyFat} onDeleteBodyFat={onDeleteBodyFat} />);
     fireEvent.change(screen.getByLabelText('Filter weight readings from date'), { target: { value: daysAgo(2).split('T')[0] } });
     const avgEl = screen.getByLabelText('Average weight');
     expect(avgEl.textContent).toContain('180');
@@ -399,7 +408,7 @@ describe('BodyCompositionSection', () => {
 
   it('shows Avg since label for weight when sinceDateWeight is set', () => {
     const weightReadings = [makeWeightReading({ id: 'w1', weight: 180, recorded_at: daysAgo(1) })];
-    render(<BodyCompositionSection weightReadings={weightReadings} circumferenceReadings={[]} onAddWeight={onAddWeight} onDeleteWeight={onDeleteWeight} onAddCircumference={onAddCircumference} onDeleteCircumference={onDeleteCircumference} />);
+    render(<BodyCompositionSection weightReadings={weightReadings} circumferenceReadings={[]} onAddWeight={onAddWeight} onDeleteWeight={onDeleteWeight} onAddCircumference={onAddCircumference} onDeleteCircumference={onDeleteCircumference} bodyFatReadings={[]} userProfile={null} onSaveProfile={onSaveProfile} onAddBodyFat={onAddBodyFat} onDeleteBodyFat={onDeleteBodyFat} />);
     const filterDate = daysAgo(2).split('T')[0];
     fireEvent.change(screen.getByLabelText('Filter weight readings from date'), { target: { value: filterDate } });
     expect(screen.getByLabelText('Average weight').textContent).toContain(`Avg since ${filterDate}`);
@@ -408,9 +417,120 @@ describe('BodyCompositionSection', () => {
   it('weight and circumference sinceDate states are independent', () => {
     const weightReadings = [makeWeightReading({ id: 'w1', weight: 180, recorded_at: daysAgo(1) })];
     const circumferenceReadings = [makeCircumferenceReading({ id: 'c1', recorded_at: daysAgo(1) })];
-    render(<BodyCompositionSection weightReadings={weightReadings} circumferenceReadings={circumferenceReadings} onAddWeight={onAddWeight} onDeleteWeight={onDeleteWeight} onAddCircumference={onAddCircumference} onDeleteCircumference={onDeleteCircumference} />);
+    render(<BodyCompositionSection weightReadings={weightReadings} circumferenceReadings={circumferenceReadings} onAddWeight={onAddWeight} onDeleteWeight={onDeleteWeight} onAddCircumference={onAddCircumference} onDeleteCircumference={onDeleteCircumference} bodyFatReadings={[]} userProfile={null} onSaveProfile={onSaveProfile} onAddBodyFat={onAddBodyFat} onDeleteBodyFat={onDeleteBodyFat} />);
     fireEvent.change(screen.getByLabelText('Filter weight readings from date'), { target: { value: '2029-01-01' } });
     expect(screen.queryByLabelText('Weight trend chart')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Circumference trend chart')).toBeInTheDocument();
+  });
+
+  // ── Profile row ───────────────────────────────────────────────────────────
+
+  it('shows height setup form when userProfile is null', () => {
+    render(<BodyCompositionSection {...defaultProps} userProfile={null} />);
+    expect(screen.getByPlaceholderText('Height (cm)')).toBeTruthy();
+  });
+
+  it('shows height text when userProfile is set', () => {
+    const profile: UserProfile = { height_cm: 178 };
+    render(<BodyCompositionSection {...defaultProps} userProfile={profile} />);
+    expect(screen.getByText(/178 cm/)).toBeTruthy();
+  });
+
+  // ── KPI dashes ────────────────────────────────────────────────────────────
+
+  it('BF% Navy shows dash when userProfile is null', () => {
+    render(<BodyCompositionSection {...defaultProps} userProfile={null} />);
+    expect(screen.getAllByText('—').length).toBeGreaterThan(0);
+  });
+
+  it('W/H ratio shows dash when circumference reading has no hip value', () => {
+    const profile: UserProfile = { height_cm: 178 };
+    const circNoHip: CircumferenceReading = { id: '1', abdomen: 90, biceps: 38, quads: 58, notes: '', recorded_at: '2026-08-01T12:00:00Z' };
+    render(<BodyCompositionSection {...defaultProps} userProfile={profile} circumferenceReadings={[circNoHip]} />);
+    expect(screen.getAllByText('—').length).toBeGreaterThan(0);
+  });
+
+  // ── Sparkline grid ────────────────────────────────────────────────────────
+
+  it('renders all 7 sparkline card labels', () => {
+    const reading: CircumferenceReading = { id: '1', abdomen: 90, biceps: 38, quads: 58, neck: 38, hip: 100, chest: 100, calf: 38, notes: '', recorded_at: '2026-08-01T12:00:00Z' };
+    render(<BodyCompositionSection {...defaultProps} circumferenceReadings={[reading]} />);
+    expect(screen.getByText('Abdomen')).toBeTruthy();
+    expect(screen.getByText('Hip')).toBeTruthy();
+    expect(screen.getByText('Neck')).toBeTruthy();
+    expect(screen.getByText('Chest')).toBeTruthy();
+    expect(screen.getByText('Biceps')).toBeTruthy();
+    expect(screen.getByText('Quads')).toBeTruthy();
+    expect(screen.getByText('Calf')).toBeTruthy();
+  });
+
+  // ── Circumference form validation ─────────────────────────────────────────
+
+  it('circumference form submit is blocked when all fields are zero', () => {
+    const onAdd = vi.fn();
+    render(<BodyCompositionSection {...defaultProps} onAddCircumference={onAdd} />);
+    fireEvent.submit(screen.getByRole('form', { name: /log circumference/i }));
+    expect(onAdd).not.toHaveBeenCalled();
+  });
+
+  // ── Body fat % form ────────────────────────────────────────────────────────
+
+  it('calls onAddBodyFat with correct value on valid submit', async () => {
+    const user = userEvent.setup();
+    const onAdd = vi.fn().mockResolvedValue(undefined);
+    // bodyFatReadings: [] — log form is always visible after Fix 3
+    render(<BodyCompositionSection {...defaultProps} bodyFatReadings={[]} onAddBodyFat={onAdd} />);
+    await user.type(screen.getByLabelText('Body fat percentage'), '20');
+    await user.click(screen.getByRole('button', { name: /^log$/i }));
+    await waitFor(() => {
+      expect(onAdd).toHaveBeenCalledWith(20, '', expect.any(String));
+    });
+  });
+
+  it('does not call onAddBodyFat when body_fat_pct is empty', async () => {
+    const onAdd = vi.fn().mockResolvedValue(undefined);
+    render(<BodyCompositionSection {...defaultProps} bodyFatReadings={[]} onAddBodyFat={onAdd} />);
+    fireEvent.submit(screen.getByRole('form', { name: /log body fat/i }));
+    expect(onAdd).not.toHaveBeenCalled();
+  });
+
+  it('does not call onAddBodyFat when body_fat_pct is 0', async () => {
+    const user = userEvent.setup();
+    const onAdd = vi.fn().mockResolvedValue(undefined);
+    render(<BodyCompositionSection {...defaultProps} bodyFatReadings={[]} onAddBodyFat={onAdd} />);
+    await user.type(screen.getByLabelText('Body fat percentage'), '0');
+    await user.click(screen.getByRole('button', { name: /^log$/i }));
+    expect(onAdd).not.toHaveBeenCalled();
+  });
+
+  // ── Body fat % delete modal ────────────────────────────────────────────────
+
+  it('opens BF% delete confirm modal when delete button is clicked', async () => {
+    const user = userEvent.setup();
+    const bfReading = { id: 'bf1', body_fat_pct: 18.5, notes: '', recorded_at: daysAgo(1) };
+    render(<BodyCompositionSection {...defaultProps} bodyFatReadings={[bfReading]} />);
+    await user.click(screen.getByRole('button', { name: /delete body fat reading/i }));
+    expect(screen.getByText(/permanently delete this body fat reading/i)).toBeInTheDocument();
+  });
+
+  it('calls onDeleteBodyFat when BF% delete is confirmed', async () => {
+    const user = userEvent.setup();
+    const onDel = vi.fn().mockResolvedValue(undefined);
+    const bfReading = { id: 'bf1', body_fat_pct: 18.5, notes: '', recorded_at: daysAgo(1) };
+    render(<BodyCompositionSection {...defaultProps} bodyFatReadings={[bfReading]} onDeleteBodyFat={onDel} />);
+    await user.click(screen.getByRole('button', { name: /delete body fat reading/i }));
+    await user.click(screen.getByRole('button', { name: /confirm delete/i }));
+    expect(onDel).toHaveBeenCalledWith('bf1');
+  });
+
+  it('cancels BF% delete when cancel is clicked', async () => {
+    const user = userEvent.setup();
+    const onDel = vi.fn().mockResolvedValue(undefined);
+    const bfReading = { id: 'bf1', body_fat_pct: 18.5, notes: '', recorded_at: daysAgo(1) };
+    render(<BodyCompositionSection {...defaultProps} bodyFatReadings={[bfReading]} onDeleteBodyFat={onDel} />);
+    await user.click(screen.getByRole('button', { name: /delete body fat reading/i }));
+    await user.click(screen.getByRole('button', { name: /^cancel$/i }));
+    expect(onDel).not.toHaveBeenCalled();
+    expect(screen.queryByText(/permanently delete this body fat reading/i)).not.toBeInTheDocument();
   });
 });

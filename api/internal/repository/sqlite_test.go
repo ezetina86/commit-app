@@ -683,7 +683,7 @@ func TestCreateAndListCircumferenceReadings(t *testing.T) {
 	ctx := context.Background()
 	now := time.Now().UTC()
 
-	r, err := repo.CreateCircumferenceReading(ctx, 36.5, 14.0, 22.0, "post-workout", now)
+	r, err := repo.CreateCircumferenceReading(ctx, 36.5, 14.0, 22.0, 0, 0, 0, 0, "post-workout", now)
 	if err != nil {
 		t.Fatalf("CreateCircumferenceReading: %v", err)
 	}
@@ -724,7 +724,7 @@ func TestDeleteCircumferenceReading(t *testing.T) {
 	ctx := context.Background()
 	now := time.Now().UTC()
 
-	r, _ := repo.CreateCircumferenceReading(ctx, 38.0, 13.5, 21.5, "", now)
+	r, _ := repo.CreateCircumferenceReading(ctx, 38.0, 13.5, 21.5, 0, 0, 0, 0, "", now)
 
 	if err := repo.DeleteCircumferenceReading(ctx, r.ID); err != nil {
 		t.Fatalf("DeleteCircumferenceReading: %v", err)
@@ -741,6 +741,142 @@ func TestDeleteCircumferenceReading_NotFound(t *testing.T) {
 	ctx := context.Background()
 
 	err := repo.DeleteCircumferenceReading(ctx, "non-existent-id")
+	if !errors.Is(err, ErrNotFound) {
+		t.Errorf("expected ErrNotFound, got %v", err)
+	}
+}
+
+// ── User Profile ──────────────────────────────────────────────────────────────
+
+func TestGetUserProfile_NoRow(t *testing.T) {
+	repo := newTestRepo(t)
+	ctx := context.Background()
+
+	p, err := repo.GetUserProfile(ctx)
+	if err != nil {
+		t.Fatalf("GetUserProfile (empty): %v", err)
+	}
+	if p != nil {
+		t.Errorf("expected nil profile, got %+v", p)
+	}
+}
+
+func TestUpsertUserProfile(t *testing.T) {
+	repo := newTestRepo(t)
+	ctx := context.Background()
+
+	p, err := repo.UpsertUserProfile(ctx, 175.5)
+	if err != nil {
+		t.Fatalf("UpsertUserProfile: %v", err)
+	}
+	if p.HeightCm != 175.5 {
+		t.Errorf("got height_cm %v, want 175.5", p.HeightCm)
+	}
+
+	// Verify it's readable
+	got, err := repo.GetUserProfile(ctx)
+	if err != nil {
+		t.Fatalf("GetUserProfile after upsert: %v", err)
+	}
+	if got == nil {
+		t.Fatal("expected non-nil profile after upsert")
+	}
+	if got.HeightCm != 175.5 {
+		t.Errorf("got height_cm %v, want 175.5", got.HeightCm)
+	}
+
+	// Second upsert must update (single-row constraint)
+	_, err = repo.UpsertUserProfile(ctx, 180.0)
+	if err != nil {
+		t.Fatalf("UpsertUserProfile (update): %v", err)
+	}
+	got, _ = repo.GetUserProfile(ctx)
+	if got.HeightCm != 180.0 {
+		t.Errorf("after second upsert: got height_cm %v, want 180.0", got.HeightCm)
+	}
+}
+
+// ── Body Fat ──────────────────────────────────────────────────────────────────
+
+func TestCreateBodyFatReading(t *testing.T) {
+	repo := newTestRepo(t)
+	ctx := context.Background()
+	now := time.Now().UTC()
+
+	r, err := repo.CreateBodyFatReading(ctx, 18.5, "morning", now)
+	if err != nil {
+		t.Fatalf("CreateBodyFatReading: %v", err)
+	}
+	if r.ID == "" {
+		t.Error("expected non-empty ID")
+	}
+	if r.BodyFatPct != 18.5 {
+		t.Errorf("got body_fat_pct %v, want 18.5", r.BodyFatPct)
+	}
+	if r.Notes != "morning" {
+		t.Errorf("got notes %q, want %q", r.Notes, "morning")
+	}
+}
+
+func TestListBodyFatReadings_Empty(t *testing.T) {
+	repo := newTestRepo(t)
+	ctx := context.Background()
+
+	list, err := repo.ListBodyFatReadings(ctx)
+	if err != nil {
+		t.Fatalf("ListBodyFatReadings empty: %v", err)
+	}
+	if list == nil {
+		t.Error("expected non-nil empty slice")
+	}
+	if len(list) != 0 {
+		t.Errorf("expected 0 readings, got %d", len(list))
+	}
+}
+
+func TestListBodyFatReadings(t *testing.T) {
+	repo := newTestRepo(t)
+	ctx := context.Background()
+	now := time.Now().UTC()
+
+	repo.CreateBodyFatReading(ctx, 20.0, "first", now)
+	repo.CreateBodyFatReading(ctx, 19.5, "second", now.Add(time.Second))
+
+	list, err := repo.ListBodyFatReadings(ctx)
+	if err != nil {
+		t.Fatalf("ListBodyFatReadings: %v", err)
+	}
+	if len(list) != 2 {
+		t.Fatalf("expected 2 readings, got %d", len(list))
+	}
+	// Newest first
+	if list[0].Notes != "second" {
+		t.Errorf("expected newest first (second), got %q", list[0].Notes)
+	}
+}
+
+func TestDeleteBodyFatReading(t *testing.T) {
+	repo := newTestRepo(t)
+	ctx := context.Background()
+	now := time.Now().UTC()
+
+	r, _ := repo.CreateBodyFatReading(ctx, 22.0, "", now)
+
+	if err := repo.DeleteBodyFatReading(ctx, r.ID); err != nil {
+		t.Fatalf("DeleteBodyFatReading: %v", err)
+	}
+
+	list, _ := repo.ListBodyFatReadings(ctx)
+	if len(list) != 0 {
+		t.Errorf("expected 0 readings after delete, got %d", len(list))
+	}
+}
+
+func TestDeleteBodyFatReading_NotFound(t *testing.T) {
+	repo := newTestRepo(t)
+	ctx := context.Background()
+
+	err := repo.DeleteBodyFatReading(ctx, "non-existent-id")
 	if !errors.Is(err, ErrNotFound) {
 		t.Errorf("expected ErrNotFound, got %v", err)
 	}

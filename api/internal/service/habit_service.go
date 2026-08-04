@@ -29,9 +29,14 @@ type HabitRepository interface {
 	CreateWeightReading(ctx context.Context, weight float64, notes string, recordedAt time.Time) (*models.WeightReading, error)
 	ListWeightReadings(ctx context.Context) ([]*models.WeightReading, error)
 	DeleteWeightReading(ctx context.Context, id string) error
-	CreateCircumferenceReading(ctx context.Context, abdomen, biceps, quads float64, notes string, recordedAt time.Time) (*models.CircumferenceReading, error)
+	CreateCircumferenceReading(ctx context.Context, abdomen, biceps, quads, neck, hip, chest, calf float64, notes string, recordedAt time.Time) (*models.CircumferenceReading, error)
 	ListCircumferenceReadings(ctx context.Context) ([]*models.CircumferenceReading, error)
 	DeleteCircumferenceReading(ctx context.Context, id string) error
+	GetUserProfile(ctx context.Context) (*models.UserProfile, error)
+	UpsertUserProfile(ctx context.Context, heightCm float64) (*models.UserProfile, error)
+	CreateBodyFatReading(ctx context.Context, bodyFatPct float64, notes string, recordedAt time.Time) (*models.BodyFatReading, error)
+	ListBodyFatReadings(ctx context.Context) ([]*models.BodyFatReading, error)
+	DeleteBodyFatReading(ctx context.Context, id string) error
 	GetSetting(ctx context.Context, key string) (string, error)
 	SetSetting(ctx context.Context, key, value string) error
 }
@@ -239,8 +244,8 @@ func (s *HabitService) DeleteWeightReading(ctx context.Context, id string) error
 	return s.repo.DeleteWeightReading(ctx, id)
 }
 
-func (s *HabitService) CreateCircumferenceReading(ctx context.Context, abdomen, biceps, quads float64, notes string, recordedAt time.Time) (*models.CircumferenceReading, error) {
-	return s.repo.CreateCircumferenceReading(ctx, abdomen, biceps, quads, notes, recordedAt)
+func (s *HabitService) CreateCircumferenceReading(ctx context.Context, abdomen, biceps, quads, neck, hip, chest, calf float64, notes string, recordedAt time.Time) (*models.CircumferenceReading, error) {
+	return s.repo.CreateCircumferenceReading(ctx, abdomen, biceps, quads, neck, hip, chest, calf, notes, recordedAt)
 }
 
 func (s *HabitService) ListCircumferenceReadings(ctx context.Context) ([]*models.CircumferenceReading, error) {
@@ -249,6 +254,26 @@ func (s *HabitService) ListCircumferenceReadings(ctx context.Context) ([]*models
 
 func (s *HabitService) DeleteCircumferenceReading(ctx context.Context, id string) error {
 	return s.repo.DeleteCircumferenceReading(ctx, id)
+}
+
+func (s *HabitService) GetUserProfile(ctx context.Context) (*models.UserProfile, error) {
+	return s.repo.GetUserProfile(ctx)
+}
+
+func (s *HabitService) UpsertUserProfile(ctx context.Context, heightCm float64) (*models.UserProfile, error) {
+	return s.repo.UpsertUserProfile(ctx, heightCm)
+}
+
+func (s *HabitService) CreateBodyFatReading(ctx context.Context, bodyFatPct float64, notes string, recordedAt time.Time) (*models.BodyFatReading, error) {
+	return s.repo.CreateBodyFatReading(ctx, bodyFatPct, notes, recordedAt)
+}
+
+func (s *HabitService) ListBodyFatReadings(ctx context.Context) ([]*models.BodyFatReading, error) {
+	return s.repo.ListBodyFatReadings(ctx)
+}
+
+func (s *HabitService) DeleteBodyFatReading(ctx context.Context, id string) error {
+	return s.repo.DeleteBodyFatReading(ctx, id)
 }
 
 func (s *HabitService) GetSetting(ctx context.Context, key string) (string, error) {

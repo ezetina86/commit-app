@@ -523,6 +523,10 @@ func main() {
 				Abdomen    float64 `json:"abdomen"`
 				Biceps     float64 `json:"biceps"`
 				Quads      float64 `json:"quads"`
+				Neck       float64 `json:"neck"`
+				Hip        float64 `json:"hip"`
+				Chest      float64 `json:"chest"`
+				Calf       float64 `json:"calf"`
 				Notes      string  `json:"notes"`
 				RecordedAt string  `json:"recorded_at"`
 			}
@@ -530,8 +534,8 @@ func main() {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
-			if req.Abdomen <= 0 || req.Biceps <= 0 || req.Quads <= 0 {
-				http.Error(w, "abdomen, biceps, and quads must be greater than 0", http.StatusBadRequest)
+			if req.Abdomen <= 0 && req.Biceps <= 0 && req.Quads <= 0 && req.Neck <= 0 && req.Hip <= 0 && req.Chest <= 0 && req.Calf <= 0 {
+				http.Error(w, "at least one measurement must be greater than 0", http.StatusBadRequest)
 				return
 			}
 			recordedAt := time.Now().UTC()
@@ -543,7 +547,7 @@ func main() {
 				}
 				recordedAt = parsed.UTC()
 			}
-			reading, err := habitService.CreateCircumferenceReading(r.Context(), req.Abdomen, req.Biceps, req.Quads, req.Notes, recordedAt)
+			reading, err := habitService.CreateCircumferenceReading(r.Context(), req.Abdomen, req.Biceps, req.Quads, req.Neck, req.Hip, req.Chest, req.Calf, req.Notes, recordedAt)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -566,6 +570,99 @@ func main() {
 		r.Delete("/circumference/{id}", func(w http.ResponseWriter, r *http.Request) {
 			id := chi.URLParam(r, "id")
 			if err := habitService.DeleteCircumferenceReading(r.Context(), id); err != nil {
+				if errors.Is(err, repository.ErrNotFound) {
+					http.Error(w, "reading not found", http.StatusNotFound)
+					return
+				}
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.WriteHeader(http.StatusNoContent)
+		})
+
+		// Profile
+		r.Get("/profile", func(w http.ResponseWriter, r *http.Request) {
+			profile, err := habitService.GetUserProfile(r.Context())
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			if profile == nil {
+				http.NotFound(w, r)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(profile)
+		})
+
+		r.Put("/profile", func(w http.ResponseWriter, r *http.Request) {
+			var req struct {
+				HeightCm float64 `json:"height_cm"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			if req.HeightCm <= 0 {
+				http.Error(w, "height_cm must be greater than 0", http.StatusBadRequest)
+				return
+			}
+			profile, err := habitService.UpsertUserProfile(r.Context(), req.HeightCm)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(profile)
+		})
+
+		// Body fat
+		r.Post("/body-fat", func(w http.ResponseWriter, r *http.Request) {
+			var req struct {
+				BodyFatPct float64 `json:"body_fat_pct"`
+				Notes      string  `json:"notes"`
+				RecordedAt string  `json:"recorded_at"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			if req.BodyFatPct <= 0 {
+				http.Error(w, "body_fat_pct must be greater than 0", http.StatusBadRequest)
+				return
+			}
+			recordedAt := time.Now().UTC()
+			if req.RecordedAt != "" {
+				parsed, err := time.Parse(time.RFC3339, req.RecordedAt)
+				if err != nil {
+					http.Error(w, "invalid recorded_at format, use RFC3339", http.StatusBadRequest)
+					return
+				}
+				recordedAt = parsed.UTC()
+			}
+			reading, err := habitService.CreateBodyFatReading(r.Context(), req.BodyFatPct, req.Notes, recordedAt)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusCreated)
+			json.NewEncoder(w).Encode(reading)
+		})
+
+		r.Get("/body-fat", func(w http.ResponseWriter, r *http.Request) {
+			readings, err := habitService.ListBodyFatReadings(r.Context())
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(readings)
+		})
+
+		r.Delete("/body-fat/{id}", func(w http.ResponseWriter, r *http.Request) {
+			id := chi.URLParam(r, "id")
+			if err := habitService.DeleteBodyFatReading(r.Context(), id); err != nil {
 				if errors.Is(err, repository.ErrNotFound) {
 					http.Error(w, "reading not found", http.StatusNotFound)
 					return
