@@ -26,6 +26,14 @@ describe('KpiCard', () => {
     expect(badge?.className).toContain('text-accent-4');
   });
 
+  it('renders green delta badge when deltaPositive matches improvementDirection=up (higher is better)', () => {
+    const { container } = render(
+      <KpiCard label="Muscle" value="40.1%" delta="+0.8%" deltaPositive={true} improvementDirection="up" />
+    );
+    const badge = container.querySelector('[data-testid="delta-badge"]');
+    expect(badge?.className).toContain('text-accent-4');
+  });
+
   it('renders red delta badge when deltaPositive does not match improvementDirection', () => {
     const { container } = render(
       <KpiCard label="BF%" value="18.5%" delta="+0.5%" deltaPositive={true} improvementDirection="down" />
