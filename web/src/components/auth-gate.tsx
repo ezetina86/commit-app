@@ -15,6 +15,5 @@ export function AuthGate() {
 
   if (auth === 'loading') return null;
   if (auth === 'unauthed') return <LoginPage onLogin={() => setAuth('authed')} />;
-  // ponytail: onLogout omitted — Task 5 adds the prop to App and wires it here
-  return <App />;
+  return <App onLogout={() => setAuth('unauthed')} />;
 }
