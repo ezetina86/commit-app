@@ -21,20 +21,7 @@ import (
 // quoteClient is a package-level client so TCP connections are reused across requests.
 var quoteClient = &http.Client{Timeout: 10 * time.Second}
 
-func main() {
-	dbPath := os.Getenv("DATABASE_PATH")
-	if dbPath == "" {
-		dbPath = "./data/habit.db"
-	}
-
-	repo, err := repository.NewSQLiteRepository(dbPath)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer repo.Close()
-
-	habitService := service.NewHabitService(repo)
-
+func newRouter(svc *service.HabitService) http.Handler {
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
@@ -95,7 +82,7 @@ func main() {
 		})
 
 		r.Get("/insights", func(w http.ResponseWriter, r *http.Request) {
-			insights, err := habitService.GenerateInsights(r.Context())
+			insights, err := svc.GenerateInsights(r.Context())
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -109,7 +96,7 @@ func main() {
 
 		r.Get("/habits", func(w http.ResponseWriter, r *http.Request) {
 			includeArchived := r.URL.Query().Get("archived") == "true"
-			habits, err := habitService.ListHabits(r.Context(), includeArchived)
+			habits, err := svc.ListHabits(r.Context(), includeArchived)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -141,7 +128,7 @@ func main() {
 				req.HabitType = "quantitative"
 			}
 
-			habit, err := habitService.CreateHabit(r.Context(), req.Name, req.MeasureUnit, req.Tags, req.DayStartOffset, req.HabitType)
+			habit, err := svc.CreateHabit(r.Context(), req.Name, req.MeasureUnit, req.Tags, req.DayStartOffset, req.HabitType)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -172,7 +159,7 @@ func main() {
 				req.HabitType = "quantitative"
 			}
 
-			if err := habitService.UpdateHabit(r.Context(), id, req.Name, req.MeasureUnit, req.Tags, req.DayStartOffset, req.HabitType); err != nil {
+			if err := svc.UpdateHabit(r.Context(), id, req.Name, req.MeasureUnit, req.Tags, req.DayStartOffset, req.HabitType); err != nil {
 				if errors.Is(err, repository.ErrNotFound) {
 					http.Error(w, "habit not found", http.StatusNotFound)
 					return
@@ -185,7 +172,7 @@ func main() {
 
 		r.Delete("/habits/{id}", func(w http.ResponseWriter, r *http.Request) {
 			id := chi.URLParam(r, "id")
-			if err := habitService.DeleteHabit(r.Context(), id); err != nil {
+			if err := svc.DeleteHabit(r.Context(), id); err != nil {
 				if errors.Is(err, repository.ErrNotFound) {
 					http.Error(w, "habit not found", http.StatusNotFound)
 					return
@@ -198,7 +185,7 @@ func main() {
 
 		r.Patch("/habits/{id}/archive", func(w http.ResponseWriter, r *http.Request) {
 			id := chi.URLParam(r, "id")
-			if err := habitService.ArchiveHabit(r.Context(), id, true); err != nil {
+			if err := svc.ArchiveHabit(r.Context(), id, true); err != nil {
 				if errors.Is(err, repository.ErrNotFound) {
 					http.Error(w, "habit not found", http.StatusNotFound)
 					return
@@ -211,7 +198,7 @@ func main() {
 
 		r.Patch("/habits/{id}/unarchive", func(w http.ResponseWriter, r *http.Request) {
 			id := chi.URLParam(r, "id")
-			if err := habitService.ArchiveHabit(r.Context(), id, false); err != nil {
+			if err := svc.ArchiveHabit(r.Context(), id, false); err != nil {
 				if errors.Is(err, repository.ErrNotFound) {
 					http.Error(w, "habit not found", http.StatusNotFound)
 					return
@@ -248,7 +235,7 @@ func main() {
 				recordedAt = parsed.UTC()
 			}
 
-			reading, err := habitService.CreateBPReading(r.Context(), req.Systolic, req.Diastolic, req.Notes, recordedAt)
+			reading, err := svc.CreateBPReading(r.Context(), req.Systolic, req.Diastolic, req.Notes, recordedAt)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -259,7 +246,7 @@ func main() {
 		})
 
 		r.Get("/bp", func(w http.ResponseWriter, r *http.Request) {
-			readings, err := habitService.ListBPReadings(r.Context())
+			readings, err := svc.ListBPReadings(r.Context())
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -270,7 +257,7 @@ func main() {
 
 		r.Delete("/bp/{id}", func(w http.ResponseWriter, r *http.Request) {
 			id := chi.URLParam(r, "id")
-			if err := habitService.DeleteBPReading(r.Context(), id); err != nil {
+			if err := svc.DeleteBPReading(r.Context(), id); err != nil {
 				if errors.Is(err, repository.ErrNotFound) {
 					http.Error(w, "reading not found", http.StatusNotFound)
 					return
@@ -309,7 +296,7 @@ func main() {
 				}
 				recordedAt = parsed.UTC()
 			}
-			reading, err := habitService.CreateEloReading(r.Context(), req.Platform, req.Rating, req.Notes, recordedAt)
+			reading, err := svc.CreateEloReading(r.Context(), req.Platform, req.Rating, req.Notes, recordedAt)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -320,7 +307,7 @@ func main() {
 		})
 
 		r.Get("/elo", func(w http.ResponseWriter, r *http.Request) {
-			readings, err := habitService.ListEloReadings(r.Context())
+			readings, err := svc.ListEloReadings(r.Context())
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -331,7 +318,7 @@ func main() {
 
 		r.Delete("/elo/{id}", func(w http.ResponseWriter, r *http.Request) {
 			id := chi.URLParam(r, "id")
-			if err := habitService.DeleteEloReading(r.Context(), id); err != nil {
+			if err := svc.DeleteEloReading(r.Context(), id); err != nil {
 				if errors.Is(err, repository.ErrNotFound) {
 					http.Error(w, "reading not found", http.StatusNotFound)
 					return
@@ -343,7 +330,7 @@ func main() {
 		})
 
 		r.Get("/elo/target", func(w http.ResponseWriter, r *http.Request) {
-			val, err := habitService.GetSetting(r.Context(), "elo_target")
+			val, err := svc.GetSetting(r.Context(), "elo_target")
 			target := 800
 			if err == nil {
 				if n, parseErr := strconv.Atoi(val); parseErr == nil {
@@ -366,7 +353,7 @@ func main() {
 				http.Error(w, "target must be greater than 0", http.StatusBadRequest)
 				return
 			}
-			if err := habitService.SetSetting(r.Context(), "elo_target", strconv.Itoa(req.Target)); err != nil {
+			if err := svc.SetSetting(r.Context(), "elo_target", strconv.Itoa(req.Target)); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
@@ -397,7 +384,7 @@ func main() {
 				}
 				recordedAt = parsed.UTC()
 			}
-			reading, err := habitService.CreateStepsReading(r.Context(), req.Steps, req.Notes, recordedAt)
+			reading, err := svc.CreateStepsReading(r.Context(), req.Steps, req.Notes, recordedAt)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -408,7 +395,7 @@ func main() {
 		})
 
 		r.Get("/steps", func(w http.ResponseWriter, r *http.Request) {
-			readings, err := habitService.ListStepsReadings(r.Context())
+			readings, err := svc.ListStepsReadings(r.Context())
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -419,7 +406,7 @@ func main() {
 
 		r.Delete("/steps/{id}", func(w http.ResponseWriter, r *http.Request) {
 			id := chi.URLParam(r, "id")
-			if err := habitService.DeleteStepsReading(r.Context(), id); err != nil {
+			if err := svc.DeleteStepsReading(r.Context(), id); err != nil {
 				if errors.Is(err, repository.ErrNotFound) {
 					http.Error(w, "reading not found", http.StatusNotFound)
 					return
@@ -431,7 +418,7 @@ func main() {
 		})
 
 		r.Get("/steps/target", func(w http.ResponseWriter, r *http.Request) {
-			val, err := habitService.GetSetting(r.Context(), "steps_target")
+			val, err := svc.GetSetting(r.Context(), "steps_target")
 			target := 15000
 			if err == nil {
 				if n, parseErr := strconv.Atoi(val); parseErr == nil {
@@ -454,7 +441,7 @@ func main() {
 				http.Error(w, "target must be greater than 0", http.StatusBadRequest)
 				return
 			}
-			if err := habitService.SetSetting(r.Context(), "steps_target", strconv.Itoa(req.Target)); err != nil {
+			if err := svc.SetSetting(r.Context(), "steps_target", strconv.Itoa(req.Target)); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
@@ -485,7 +472,7 @@ func main() {
 				}
 				recordedAt = parsed.UTC()
 			}
-			reading, err := habitService.CreateWeightReading(r.Context(), req.Weight, req.Notes, recordedAt)
+			reading, err := svc.CreateWeightReading(r.Context(), req.Weight, req.Notes, recordedAt)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -496,7 +483,7 @@ func main() {
 		})
 
 		r.Get("/weight", func(w http.ResponseWriter, r *http.Request) {
-			readings, err := habitService.ListWeightReadings(r.Context())
+			readings, err := svc.ListWeightReadings(r.Context())
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -507,7 +494,7 @@ func main() {
 
 		r.Delete("/weight/{id}", func(w http.ResponseWriter, r *http.Request) {
 			id := chi.URLParam(r, "id")
-			if err := habitService.DeleteWeightReading(r.Context(), id); err != nil {
+			if err := svc.DeleteWeightReading(r.Context(), id); err != nil {
 				if errors.Is(err, repository.ErrNotFound) {
 					http.Error(w, "reading not found", http.StatusNotFound)
 					return
@@ -547,7 +534,7 @@ func main() {
 				}
 				recordedAt = parsed.UTC()
 			}
-			reading, err := habitService.CreateCircumferenceReading(r.Context(), req.Abdomen, req.Biceps, req.Quads, req.Neck, req.Hip, req.Chest, req.Calf, req.Notes, recordedAt)
+			reading, err := svc.CreateCircumferenceReading(r.Context(), req.Abdomen, req.Biceps, req.Quads, req.Neck, req.Hip, req.Chest, req.Calf, req.Notes, recordedAt)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -558,7 +545,7 @@ func main() {
 		})
 
 		r.Get("/circumference", func(w http.ResponseWriter, r *http.Request) {
-			readings, err := habitService.ListCircumferenceReadings(r.Context())
+			readings, err := svc.ListCircumferenceReadings(r.Context())
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -569,7 +556,7 @@ func main() {
 
 		r.Delete("/circumference/{id}", func(w http.ResponseWriter, r *http.Request) {
 			id := chi.URLParam(r, "id")
-			if err := habitService.DeleteCircumferenceReading(r.Context(), id); err != nil {
+			if err := svc.DeleteCircumferenceReading(r.Context(), id); err != nil {
 				if errors.Is(err, repository.ErrNotFound) {
 					http.Error(w, "reading not found", http.StatusNotFound)
 					return
@@ -582,7 +569,7 @@ func main() {
 
 		// Profile
 		r.Get("/profile", func(w http.ResponseWriter, r *http.Request) {
-			profile, err := habitService.GetUserProfile(r.Context())
+			profile, err := svc.GetUserProfile(r.Context())
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -607,7 +594,7 @@ func main() {
 				http.Error(w, "height_cm must be greater than 0", http.StatusBadRequest)
 				return
 			}
-			profile, err := habitService.UpsertUserProfile(r.Context(), req.HeightCm)
+			profile, err := svc.UpsertUserProfile(r.Context(), req.HeightCm)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -640,7 +627,7 @@ func main() {
 				}
 				recordedAt = parsed.UTC()
 			}
-			reading, err := habitService.CreateBodyFatReading(r.Context(), req.BodyFatPct, req.Notes, recordedAt)
+			reading, err := svc.CreateBodyFatReading(r.Context(), req.BodyFatPct, req.Notes, recordedAt)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -651,7 +638,7 @@ func main() {
 		})
 
 		r.Get("/body-fat", func(w http.ResponseWriter, r *http.Request) {
-			readings, err := habitService.ListBodyFatReadings(r.Context())
+			readings, err := svc.ListBodyFatReadings(r.Context())
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -662,7 +649,7 @@ func main() {
 
 		r.Delete("/body-fat/{id}", func(w http.ResponseWriter, r *http.Request) {
 			id := chi.URLParam(r, "id")
-			if err := habitService.DeleteBodyFatReading(r.Context(), id); err != nil {
+			if err := svc.DeleteBodyFatReading(r.Context(), id); err != nil {
 				if errors.Is(err, repository.ErrNotFound) {
 					http.Error(w, "reading not found", http.StatusNotFound)
 					return
@@ -693,7 +680,7 @@ func main() {
 				value = *req.Value
 			}
 
-			if err := habitService.CheckIn(r.Context(), req.HabitID, req.Date, value); err != nil {
+			if err := svc.CheckIn(r.Context(), req.HabitID, req.Date, value); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
@@ -701,13 +688,30 @@ func main() {
 		})
 	})
 
+	return r
+}
+
+func main() {
+	dbPath := os.Getenv("DATABASE_PATH")
+	if dbPath == "" {
+		dbPath = "./data/habit.db"
+	}
+
+	repo, err := repository.NewSQLiteRepository(dbPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer repo.Close()
+
+	svc := service.NewHabitService(repo)
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
 
 	log.Printf("Server starting on port %s", port)
-	if err := http.ListenAndServe(":"+port, r); err != nil {
+	if err := http.ListenAndServe(":"+port, newRouter(svc)); err != nil {
 		log.Fatal(err)
 	}
 }
