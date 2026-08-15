@@ -495,3 +495,27 @@ describe('App — Body Composition handlers send RFC3339 recorded_at', () => {
     });
   });
 });
+
+describe('App — Logout', () => {
+  it('calls onLogout and posts to /api/auth/logout when sign out is clicked', async () => {
+    const onLogout = vi.fn();
+    (fetch as Mock).mockImplementation((url: string, opts?: RequestInit) => {
+      if (url.includes('/api/auth/logout') && opts?.method === 'POST') {
+        return Promise.resolve({ ok: true });
+      }
+      if (url.includes('/api/habits')) return Promise.resolve({ ok: true, json: async () => mockHabits });
+      if (url.includes('/api/insights')) return Promise.resolve({ ok: true, json: async () => mockInsights });
+      if (url.includes('/api/quote')) return Promise.resolve({ ok: true, json: async () => ({ quote: 'q', author: 'a', category: 'c' }) });
+      return Promise.resolve({ ok: true, json: async () => ({}) });
+    });
+
+    render(<App onLogout={onLogout} />);
+    const btn = await screen.findByRole('button', { name: /sign out/i });
+    fireEvent.click(btn);
+
+    await waitFor(() => {
+      expect(fetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' });
+      expect(onLogout).toHaveBeenCalledOnce();
+    });
+  });
+});

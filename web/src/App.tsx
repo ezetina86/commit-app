@@ -22,7 +22,7 @@ interface Habit {
   completions: CompletionData[];
 }
 
-function App() {
+function App({ onLogout }: { onLogout?: () => void } = {}) {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [bpReadings, setBpReadings] = useState<BloodPressureReading[]>([]);
   const [eloReadings, setEloReadings] = useState<EloReading[]>([]);
@@ -513,14 +513,26 @@ function App() {
           <h1 className="text-4xl font-bold tracking-tight mb-2 uppercase pointer-events-auto">Commit</h1>
           <p className="text-text-secondary text-sm tracking-widest uppercase pointer-events-auto">Precision Habit Tracking</p>
         </div>
-        <button
-          onClick={() => setShowInsights(!showInsights)}
-          className={`pointer-events-auto cursor-pointer font-mono text-xs px-3 py-1.5 rounded-sm border transition-colors ${showInsights ? 'bg-accent-4 text-background border-accent-4' : 'bg-surface border-white/10 text-text-secondary hover:text-text-primary hover:border-white/30'}`}
-          aria-label="Toggle insights panel"
-          title="Toggle System Insights"
-        >
-          &gt;_
-        </button>
+        <div className="pointer-events-auto flex items-center gap-2">
+          <button
+            onClick={() => setShowInsights(!showInsights)}
+            className={`cursor-pointer font-mono text-xs px-3 py-1.5 rounded-sm border transition-colors ${showInsights ? 'bg-accent-4 text-background border-accent-4' : 'bg-surface border-white/10 text-text-secondary hover:text-text-primary hover:border-white/30'}`}
+            aria-label="Toggle insights panel"
+            title="Toggle System Insights"
+          >
+            &gt;_
+          </button>
+          <button
+            onClick={async () => {
+              await fetch('/api/auth/logout', { method: 'POST' });
+              onLogout?.();
+            }}
+            className="cursor-pointer font-mono text-xs px-3 py-1.5 rounded-sm border border-white/10 text-text-secondary hover:text-text-primary hover:border-white/30 transition-colors"
+            aria-label="Sign out"
+          >
+            Sign out
+          </button>
+        </div>
       </header>
 
       <main className="w-full flex flex-col gap-8">
