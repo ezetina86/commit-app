@@ -206,6 +206,8 @@ jobs:
             -p 8080:8080 \
             -e DATABASE_PATH=/tmp/test.db \
             -e PORT=8080 \
+            -e APP_USERNAME=${{ secrets.APP_USERNAME }} \
+            -e APP_PASSWORD_HASH=${{ secrets.APP_PASSWORD_HASH }} \
             commit-api:ci
           for i in $(seq 1 10); do
             if curl -sf http://localhost:8080/health; then
