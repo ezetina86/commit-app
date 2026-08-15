@@ -83,6 +83,10 @@ func newRouter(svc *service.HabitService) http.Handler {
 			}
 			appUser := os.Getenv("APP_USERNAME")
 			appHash := os.Getenv("APP_PASSWORD_HASH")
+			if appUser == "" || appHash == "" {
+				http.Error(w, "auth not configured", http.StatusInternalServerError)
+				return
+			}
 			// ponytail: both checks always run to prevent username enumeration via timing
 			usernameOK := subtle.ConstantTimeCompare([]byte(req.Username), []byte(appUser)) == 1
 			pwErr := bcrypt.CompareHashAndPassword([]byte(appHash), []byte(req.Password))
@@ -791,10 +795,6 @@ func newRouter(svc *service.HabitService) http.Handler {
 }
 
 func main() {
-	if os.Getenv("APP_USERNAME") == "" || os.Getenv("APP_PASSWORD_HASH") == "" {
-		log.Fatal("APP_USERNAME and APP_PASSWORD_HASH must be set")
-	}
-
 	dbPath := os.Getenv("DATABASE_PATH")
 	if dbPath == "" {
 		dbPath = "./data/habit.db"
