@@ -114,10 +114,13 @@ func newRouter(svc *service.HabitService) http.Handler {
 					sessions.Delete(cookie.Value)
 				}
 				http.SetCookie(w, &http.Cookie{
-					Name:   "session",
-					Value:  "",
-					Path:   "/",
-					MaxAge: -1,
+					Name:     "session",
+					Value:    "",
+					Path:     "/",
+					MaxAge:   -1,
+					HttpOnly: true,
+					Secure:   true,
+					SameSite: http.SameSiteStrictMode,
 				})
 				w.WriteHeader(http.StatusNoContent)
 			})
@@ -788,6 +791,10 @@ func newRouter(svc *service.HabitService) http.Handler {
 }
 
 func main() {
+	if os.Getenv("APP_USERNAME") == "" || os.Getenv("APP_PASSWORD_HASH") == "" {
+		log.Fatal("APP_USERNAME and APP_PASSWORD_HASH must be set")
+	}
+
 	dbPath := os.Getenv("DATABASE_PATH")
 	if dbPath == "" {
 		dbPath = "./data/habit.db"
