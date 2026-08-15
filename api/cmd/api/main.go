@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"io"
@@ -9,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/ezetina/commit/api/internal/models"
@@ -16,10 +18,48 @@ import (
 	"github.com/ezetina/commit/api/internal/service"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // quoteClient is a package-level client so TCP connections are reused across requests.
 var quoteClient = &http.Client{Timeout: 10 * time.Second}
+
+// Package-level session store: token → expiry
+var sessions sync.Map
+
+func startSessionSweep() {
+	go func() {
+		ticker := time.NewTicker(time.Hour)
+		defer ticker.Stop()
+		for range ticker.C {
+			now := time.Now()
+			sessions.Range(func(k, v interface{}) bool {
+				if now.After(v.(time.Time)) {
+					sessions.Delete(k)
+				}
+				return true
+			})
+		}
+	}()
+}
+
+func authMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		cookie, err := r.Cookie("session")
+		if err != nil {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		expiry, ok := sessions.Load(cookie.Value)
+		if !ok || time.Now().After(expiry.(time.Time)) {
+			sessions.Delete(cookie.Value)
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
 
 func newRouter(svc *service.HabitService) http.Handler {
 	r := chi.NewRouter()
@@ -31,6 +71,62 @@ func newRouter(svc *service.HabitService) http.Handler {
 	})
 
 	r.Route("/api", func(r chi.Router) {
+		// Public — no auth required
+		r.Post("/auth/login", func(w http.ResponseWriter, r *http.Request) {
+			var req struct {
+				Username string `json:"username"`
+				Password string `json:"password"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				http.Error(w, "bad request", http.StatusBadRequest)
+				return
+			}
+			appUser := os.Getenv("APP_USERNAME")
+			appHash := os.Getenv("APP_PASSWORD_HASH")
+			if subtle.ConstantTimeCompare([]byte(req.Username), []byte(appUser)) != 1 {
+				http.Error(w, "unauthorized", http.StatusUnauthorized)
+				return
+			}
+			if err := bcrypt.CompareHashAndPassword([]byte(appHash), []byte(req.Password)); err != nil {
+				http.Error(w, "unauthorized", http.StatusUnauthorized)
+				return
+			}
+			token := uuid.New().String()
+			sessions.Store(token, time.Now().Add(7*24*time.Hour))
+			http.SetCookie(w, &http.Cookie{
+				Name:     "session",
+				Value:    token,
+				HttpOnly: true,
+				Secure:   true,
+				SameSite: http.SameSiteStrictMode,
+				Path:     "/",
+				MaxAge:   604800,
+			})
+			w.WriteHeader(http.StatusOK)
+		})
+
+		// Protected — all other routes
+		r.Group(func(r chi.Router) {
+			r.Use(authMiddleware)
+
+			r.Post("/auth/logout", func(w http.ResponseWriter, r *http.Request) {
+				cookie, err := r.Cookie("session")
+				if err == nil {
+					sessions.Delete(cookie.Value)
+				}
+				http.SetCookie(w, &http.Cookie{
+					Name:   "session",
+					Value:  "",
+					Path:   "/",
+					MaxAge: -1,
+				})
+				w.WriteHeader(http.StatusNoContent)
+			})
+
+			r.Get("/auth/me", func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+			})
+
 		r.Get("/quote", func(w http.ResponseWriter, r *http.Request) {
 			apiKey := os.Getenv("NINJAS_API_KEY")
 			if apiKey == "" {
@@ -686,6 +782,7 @@ func newRouter(svc *service.HabitService) http.Handler {
 			}
 			w.WriteHeader(http.StatusNoContent)
 		})
+		}) // end protected group
 	})
 
 	return r
@@ -702,6 +799,8 @@ func main() {
 		log.Fatal(err)
 	}
 	defer repo.Close()
+
+	startSessionSweep()
 
 	svc := service.NewHabitService(repo)
 
