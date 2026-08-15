@@ -83,11 +83,10 @@ func newRouter(svc *service.HabitService) http.Handler {
 			}
 			appUser := os.Getenv("APP_USERNAME")
 			appHash := os.Getenv("APP_PASSWORD_HASH")
-			if subtle.ConstantTimeCompare([]byte(req.Username), []byte(appUser)) != 1 {
-				http.Error(w, "unauthorized", http.StatusUnauthorized)
-				return
-			}
-			if err := bcrypt.CompareHashAndPassword([]byte(appHash), []byte(req.Password)); err != nil {
+			// ponytail: both checks always run to prevent username enumeration via timing
+			usernameOK := subtle.ConstantTimeCompare([]byte(req.Username), []byte(appUser)) == 1
+			pwErr := bcrypt.CompareHashAndPassword([]byte(appHash), []byte(req.Password))
+			if !usernameOK || pwErr != nil {
 				http.Error(w, "unauthorized", http.StatusUnauthorized)
 				return
 			}

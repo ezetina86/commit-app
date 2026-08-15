@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 	"time"
 
@@ -34,8 +33,8 @@ func clearSessions() {
 func TestLogin_ValidCredentials(t *testing.T) {
 	clearSessions()
 	hash, _ := bcrypt.GenerateFromPassword([]byte("testpass"), 4) // cost 4 in tests for speed
-	os.Setenv("APP_USERNAME", "testuser")
-	os.Setenv("APP_PASSWORD_HASH", string(hash))
+	t.Setenv("APP_USERNAME", "testuser")
+	t.Setenv("APP_PASSWORD_HASH", string(hash))
 
 	body, _ := json.Marshal(map[string]string{"username": "testuser", "password": "testpass"})
 	req := httptest.NewRequest(http.MethodPost, "/api/auth/login", bytes.NewReader(body))
@@ -61,8 +60,8 @@ func TestLogin_ValidCredentials(t *testing.T) {
 func TestLogin_InvalidPassword(t *testing.T) {
 	clearSessions()
 	hash, _ := bcrypt.GenerateFromPassword([]byte("testpass"), 4)
-	os.Setenv("APP_USERNAME", "testuser")
-	os.Setenv("APP_PASSWORD_HASH", string(hash))
+	t.Setenv("APP_USERNAME", "testuser")
+	t.Setenv("APP_PASSWORD_HASH", string(hash))
 
 	body, _ := json.Marshal(map[string]string{"username": "testuser", "password": "wrongpass"})
 	req := httptest.NewRequest(http.MethodPost, "/api/auth/login", bytes.NewReader(body))
@@ -79,8 +78,8 @@ func TestLogin_InvalidPassword(t *testing.T) {
 func TestLogin_InvalidUsername(t *testing.T) {
 	clearSessions()
 	hash, _ := bcrypt.GenerateFromPassword([]byte("testpass"), 4)
-	os.Setenv("APP_USERNAME", "testuser")
-	os.Setenv("APP_PASSWORD_HASH", string(hash))
+	t.Setenv("APP_USERNAME", "testuser")
+	t.Setenv("APP_PASSWORD_HASH", string(hash))
 
 	body, _ := json.Marshal(map[string]string{"username": "wronguser", "password": "testpass"})
 	req := httptest.NewRequest(http.MethodPost, "/api/auth/login", bytes.NewReader(body))
@@ -136,5 +135,17 @@ func TestLogout(t *testing.T) {
 	}
 	if _, ok := sessions.Load("active-token"); ok {
 		t.Error("expected session to be deleted after logout")
+	}
+}
+
+func TestExistingRoute_RequiresAuth(t *testing.T) {
+	clearSessions()
+	req := httptest.NewRequest(http.MethodGet, "/api/habits", nil)
+	w := httptest.NewRecorder()
+
+	setupTestRouter(t).ServeHTTP(w, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", w.Code)
 	}
 }
