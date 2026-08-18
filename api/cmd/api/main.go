@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"math/rand"
+	"net"
 	"net/http"
 	"os"
 	"strconv"
@@ -27,6 +28,41 @@ var quoteClient = &http.Client{Timeout: 10 * time.Second}
 
 // Package-level session store: token → expiry
 var sessions sync.Map
+
+// loginWindow tracks failed login attempts per IP: IP → *ipWindow
+var loginWindows sync.Map
+
+type ipWindow struct {
+	mu      sync.Mutex
+	count   int
+	resetAt time.Time
+}
+
+// loginAllowed returns false when the IP has exceeded 10 attempts in a 1-minute window.
+func loginAllowed(ip string) bool {
+	v, _ := loginWindows.LoadOrStore(ip, &ipWindow{resetAt: time.Now().Add(time.Minute)})
+	w := v.(*ipWindow)
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if time.Now().After(w.resetAt) {
+		w.count = 0
+		w.resetAt = time.Now().Add(time.Minute)
+	}
+	w.count++
+	return w.count <= 10
+}
+
+// realIP extracts the client IP, preferring the Cloudflare header when present.
+func realIP(r *http.Request) string {
+	if ip := r.Header.Get("CF-Connecting-IP"); ip != "" {
+		return ip
+	}
+	if ip := r.Header.Get("X-Real-IP"); ip != "" {
+		return ip
+	}
+	host, _, _ := net.SplitHostPort(r.RemoteAddr)
+	return host
+}
 
 func startSessionSweep() {
 	go func() {
@@ -73,10 +109,15 @@ func newRouter(svc *service.HabitService) http.Handler {
 	r.Route("/api", func(r chi.Router) {
 		// Public — no auth required
 		r.Post("/auth/login", func(w http.ResponseWriter, r *http.Request) {
+			if !loginAllowed(realIP(r)) {
+				http.Error(w, "too many requests", http.StatusTooManyRequests)
+				return
+			}
 			var req struct {
 				Username string `json:"username"`
 				Password string `json:"password"`
 			}
+			r.Body = http.MaxBytesReader(w, r.Body, 1024)
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 				http.Error(w, "bad request", http.StatusBadRequest)
 				return
